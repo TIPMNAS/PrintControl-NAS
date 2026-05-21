@@ -1,3 +1,5 @@
+import { SupabaseConnectionStatus } from '../components/debug/SupabaseConnectionStatus'
+
 import {
   TrendingUp,
   Printer,
@@ -20,6 +22,7 @@ import {
   Legend
 } from 'recharts';
 import { Link } from 'react-router-dom';
+
 
 // Mock Data
 const monthlyPrintTrend = [
@@ -52,6 +55,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Bem-vindo, Administrador</h2>
+          <SupabaseConnectionStatus />
           <p className="text-sm text-slate-500 dark:text-slate-400">Consolidado mensal das cotas, custos e monitoramento de impressões.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -235,8 +239,8 @@ export default function Dashboard() {
                     ${alert.type === 'danger'
                       ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/10 text-rose-800 dark:text-rose-300'
                       : alert.type === 'warning'
-                      ? 'bg-amber-50/50 border-amber-100 dark:bg-amber-500/5 dark:border-amber-500/10 text-amber-800 dark:text-amber-300'
-                      : 'bg-indigo-50/50 border-indigo-100 dark:bg-indigo-500/5 dark:border-indigo-500/10 text-indigo-800 dark:text-indigo-300'
+                        ? 'bg-amber-50/50 border-amber-100 dark:bg-amber-500/5 dark:border-amber-500/10 text-amber-800 dark:text-amber-300'
+                        : 'bg-indigo-50/50 border-indigo-100 dark:bg-indigo-500/5 dark:border-indigo-500/10 text-indigo-800 dark:text-indigo-300'
                     }
                   `}
                 >
@@ -246,8 +250,8 @@ export default function Dashboard() {
                       ${alert.type === 'danger'
                         ? 'text-rose-600 dark:text-rose-400'
                         : alert.type === 'warning'
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-indigo-600 dark:text-indigo-400'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-indigo-600 dark:text-indigo-400'
                       }
                     `}
                   />
