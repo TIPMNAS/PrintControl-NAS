@@ -15,6 +15,7 @@ import Contratos from '../pages/Contratos'
 import Saldos from '../pages/Saldos'
 import PapelA4 from '../pages/PapelA4'
 import Configuracoes from '../pages/Configuracoes'
+import FilaProcessamento from '../pages/FilaProcessamento'
 
 export default function AppRoutes() {
   return (
@@ -41,6 +42,7 @@ export default function AppRoutes() {
         <Route path="/papel-a4" element={<PapelA4 />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/fila-processamento" element={<FilaProcessamento />} />
       </Route>
     </Routes>
   )
