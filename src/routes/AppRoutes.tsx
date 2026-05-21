@@ -1,21 +1,33 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import AppLayout from '../components/layout/AppLayout';
-import Dashboard from '../pages/Dashboard';
-import RelatoriosPdf from '../pages/RelatoriosPdf';
-import Leituras from '../pages/Leituras';
-import Equipamentos from '../pages/Equipamentos';
-import Modelos from '../pages/Modelos';
-import Secretarias from '../pages/Secretarias';
-import Setores from '../pages/Setores';
-import Contratos from '../pages/Contratos';
-import Saldos from '../pages/Saldos';
-import PapelA4 from '../pages/PapelA4';
-import Configuracoes from '../pages/Configuracoes';
+import { Routes, Route, Navigate } from 'react-router-dom'
+
+import AppLayout from '../components/layout/AppLayout'
+import { ProtectedRoute } from '../components/auth/ProtectedRoute'
+
+import Login from '../pages/Login'
+import Dashboard from '../pages/Dashboard'
+import RelatoriosPdf from '../pages/RelatoriosPdf'
+import Leituras from '../pages/Leituras'
+import Equipamentos from '../pages/Equipamentos'
+import Modelos from '../pages/Modelos'
+import Secretarias from '../pages/Secretarias'
+import Setores from '../pages/Setores'
+import Contratos from '../pages/Contratos'
+import Saldos from '../pages/Saldos'
+import PapelA4 from '../pages/PapelA4'
+import Configuracoes from '../pages/Configuracoes'
 
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route path="/login" element={<Login />} />
+
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/relatorios-pdf" element={<RelatoriosPdf />} />
@@ -31,5 +43,5 @@ export default function AppRoutes() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
-  );
+  )
 }
