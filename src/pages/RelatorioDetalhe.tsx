@@ -3,16 +3,22 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   CheckCircle2,
   Clock3,
   FileText,
   Loader2,
   RefreshCw,
   Search,
+  ShieldCheck,
   XCircle,
 } from 'lucide-react'
 
 import { useRelatorioDetalhe } from '../hooks/useRelatorioDetalhe'
+import {
+  useAprovarRelatorio,
+  useRejeitarRelatorio,
+} from '../hooks/useRelatorioAcoes'
 import type { RelatorioDetalheLeitura } from '../types/relatorioDetalhe'
 import { formatCurrency, formatNumber } from '../utils/formatters'
 
@@ -130,8 +136,18 @@ export default function RelatorioDetalhe() {
   const { data, isLoading, isError, error, refetch, isFetching } =
     useRelatorioDetalhe(id)
 
+  const aprovarRelatorio = useAprovarRelatorio()
+  const rejeitarRelatorio = useRejeitarRelatorio()
+
   const [busca, setBusca] = useState('')
   const [somenteDivergentes, setSomenteDivergentes] = useState(false)
+
+  const [modalAprovarAberto, setModalAprovarAberto] = useState(false)
+  const [modalRejeitarAberto, setModalRejeitarAberto] = useState(false)
+  const [observacoesAprovacao, setObservacoesAprovacao] = useState('')
+  const [motivoRejeicao, setMotivoRejeicao] = useState('')
+  const [mensagemAcao, setMensagemAcao] = useState<string | null>(null)
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   const leiturasFiltradas = useMemo(() => {
     const textoBusca = normalizarTexto(busca.trim())
@@ -154,6 +170,58 @@ export default function RelatorioDetalhe() {
       }) ?? []
     )
   }, [busca, data?.leituras, somenteDivergentes])
+
+  async function handleAprovarRelatorio() {
+    if (!id) return
+
+    setMensagemAcao(null)
+    setErroAcao(null)
+
+    try {
+      await aprovarRelatorio.mutateAsync({
+        relatorioId: id,
+        observacoes: observacoesAprovacao,
+      })
+
+      setMensagemAcao('Relatório aprovado com sucesso.')
+      setModalAprovarAberto(false)
+      setObservacoesAprovacao('')
+
+      await refetch()
+    } catch (error) {
+      setErroAcao(
+        error instanceof Error
+          ? error.message
+          : 'Erro desconhecido ao aprovar relatório.',
+      )
+    }
+  }
+
+  async function handleRejeitarRelatorio() {
+    if (!id) return
+
+    setMensagemAcao(null)
+    setErroAcao(null)
+
+    try {
+      await rejeitarRelatorio.mutateAsync({
+        relatorioId: id,
+        motivo: motivoRejeicao,
+      })
+
+      setMensagemAcao('Relatório rejeitado com sucesso.')
+      setModalRejeitarAberto(false)
+      setMotivoRejeicao('')
+
+      await refetch()
+    } catch (error) {
+      setErroAcao(
+        error instanceof Error
+          ? error.message
+          : 'Erro desconhecido ao rejeitar relatório.',
+      )
+    }
+  }
 
   if (isLoading) {
     return (
@@ -210,6 +278,10 @@ export default function RelatorioDetalhe() {
     return null
   }
 
+  const podeAprovar = data.relatorio.status !== 'aprovado'
+  const podeRejeitar =
+    data.relatorio.status !== 'aprovado' && data.relatorio.status !== 'rejeitado'
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -233,20 +305,56 @@ export default function RelatorioDetalhe() {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            Visualização detalhada das leituras importadas do PDF. Nesta etapa a
-            tela é somente de conferência visual.
+            Visualização detalhada das leituras importadas do PDF. Nesta tela,
+            você confere os dados antes de aprovar ou rejeitar um relatório.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-        >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-          Atualizar
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Atualizar
+          </button>
+
+          {podeAprovar && (
+            <button
+              type="button"
+              onClick={() => setModalAprovarAberto(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Aprovar
+            </button>
+          )}
+
+          {podeRejeitar && (
+            <button
+              type="button"
+              onClick={() => setModalRejeitarAberto(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-800 bg-red-950/50 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950"
+            >
+              <Ban className="h-4 w-4" />
+              Rejeitar
+            </button>
+          )}
+        </div>
       </section>
+
+      {mensagemAcao && (
+        <div className="rounded-2xl border border-emerald-900/60 bg-emerald-950/30 p-4 text-sm text-emerald-200">
+          {mensagemAcao}
+        </div>
+      )}
+
+      {erroAcao && (
+        <div className="rounded-2xl border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-200">
+          {erroAcao}
+        </div>
+      )}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ResumoCard
@@ -546,6 +654,102 @@ export default function RelatorioDetalhe() {
           </div>
         )}
       </section>
+
+      {modalAprovarAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white">Aprovar relatório</h2>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Confirme a aprovação somente se os valores e leituras estiverem corretos.
+              Esta ação será registrada em auditoria.
+            </p>
+
+            <label className="mt-5 block text-sm font-medium text-slate-300">
+              Observações da aprovação
+            </label>
+
+            <textarea
+              value={observacoesAprovacao}
+              onChange={(event) => setObservacoesAprovacao(event.target.value)}
+              rows={4}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+              placeholder="Exemplo: Conferido com o PDF original e valores corretos."
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModalAprovarAberto(false)}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAprovarRelatorio}
+                disabled={aprovarRelatorio.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {aprovarRelatorio.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Confirmar aprovação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalRejeitarAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-red-900/60 bg-slate-900 p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white">Rejeitar relatório</h2>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Informe o motivo da rejeição. O motivo é obrigatório e ficará registrado
+              para auditoria.
+            </p>
+
+            <label className="mt-5 block text-sm font-medium text-slate-300">
+              Motivo da rejeição
+            </label>
+
+            <textarea
+              value={motivoRejeicao}
+              onChange={(event) => setMotivoRejeicao(event.target.value)}
+              rows={4}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-red-500"
+              placeholder="Exemplo: Valor total do PDF não confere com os itens importados."
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModalRejeitarAberto(false)}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRejeitarRelatorio}
+                disabled={
+                  rejeitarRelatorio.isPending || motivoRejeicao.trim().length === 0
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {rejeitarRelatorio.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Confirmar rejeição
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
