@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
   CheckCircle2,
   Clock3,
+  Eye,
   FileText,
   Filter,
   Loader2,
@@ -132,6 +134,8 @@ function ResumoCard({
 }
 
 export default function RelatoriosPdf() {
+  const navigate = useNavigate()
+
   const { data, isLoading, isError, error, refetch, isFetching } = useRelatoriosPdf()
 
   const [busca, setBusca] = useState('')
@@ -367,7 +371,7 @@ export default function RelatoriosPdf() {
             Lista de relatórios PDF
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Clique futuramente em um relatório para abrir a conferência detalhada.
+            Clique em Abrir para visualizar a conferência detalhada do relatório.
           </p>
         </div>
 
@@ -383,7 +387,7 @@ export default function RelatoriosPdf() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1180px] w-full text-left text-sm">
+            <table className="min-w-[1280px] w-full text-left text-sm">
               <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3">Arquivo</th>
@@ -396,12 +400,17 @@ export default function RelatoriosPdf() {
                   <th className="px-5 py-3 text-right">Total páginas</th>
                   <th className="px-5 py-3 text-right">Valor líquido</th>
                   <th className="px-5 py-3">Importado em</th>
+                  <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800">
                 {relatoriosFiltrados.map((relatorio) => (
-                  <tr key={relatorio.id} className="hover:bg-slate-800/40">
+                  <tr
+                    key={relatorio.id}
+                    onClick={() => navigate(`/relatorios-pdf/${relatorio.id}`)}
+                    className="cursor-pointer hover:bg-slate-800/40"
+                  >
                     <td className="px-5 py-4">
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 rounded-xl bg-violet-950/60 p-2 text-violet-300">
@@ -460,6 +469,20 @@ export default function RelatoriosPdf() {
 
                     <td className="px-5 py-4 text-slate-400">
                       {formatarDataHora(relatorio.createdAt)}
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          navigate(`/relatorios-pdf/${relatorio.id}`)
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Abrir
+                      </button>
                     </td>
                   </tr>
                 ))}

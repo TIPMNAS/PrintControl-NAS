@@ -6,6 +6,8 @@ import { ProtectedRoute } from '../components/auth/ProtectedRoute'
 import Login from '../pages/Login'
 import Dashboard from '../pages/Dashboard'
 import RelatoriosPdf from '../pages/RelatoriosPdf'
+import RelatorioDetalhe from '../pages/RelatorioDetalhe'
+import FilaProcessamento from '../pages/FilaProcessamento'
 import Leituras from '../pages/Leituras'
 import Equipamentos from '../pages/Equipamentos'
 import Modelos from '../pages/Modelos'
@@ -15,7 +17,6 @@ import Contratos from '../pages/Contratos'
 import Saldos from '../pages/Saldos'
 import PapelA4 from '../pages/PapelA4'
 import Configuracoes from '../pages/Configuracoes'
-import FilaProcessamento from '../pages/FilaProcessamento'
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,8 @@ export default function AppRoutes() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/relatorios-pdf" element={<RelatoriosPdf />} />
+        <Route path="/relatorios-pdf/:id" element={<RelatorioDetalhe />} />
+        <Route path="/fila-processamento" element={<FilaProcessamento />} />
         <Route path="/leituras" element={<Leituras />} />
         <Route path="/equipamentos" element={<Equipamentos />} />
         <Route path="/modelos" element={<Modelos />} />
@@ -42,7 +45,6 @@ export default function AppRoutes() {
         <Route path="/papel-a4" element={<PapelA4 />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/fila-processamento" element={<FilaProcessamento />} />
       </Route>
     </Routes>
   )
