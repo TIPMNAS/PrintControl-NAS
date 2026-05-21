@@ -101,8 +101,9 @@ function normalizarItem(row: FilaRow): FilaProcessamentoItem {
             buscarCampo(row, ['arquivo_hash', 'hash_arquivo', 'file_hash', 'hash']),
         ),
         status:
-            stringOuNull(buscarCampo(row, ['status', 'situacao'])) ??
-            'aguardando_processamento',
+            stringOuNull(
+                buscarCampo(row, ['status_processamento', 'status', 'situacao']),
+            ) ?? 'aguardando_processamento',
         tentativas: numeroOuZero(
             buscarCampo(row, ['tentativas', 'tentativa', 'qtd_tentativas']),
         ),

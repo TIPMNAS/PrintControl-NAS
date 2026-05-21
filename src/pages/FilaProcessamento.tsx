@@ -50,7 +50,7 @@ function getStatusLabel(status: string) {
 }
 
 function getStatusClasses(status: string) {
-    if (status === 'aprovado' || status === 'importado' || status === 'validado') {
+    if (status === 'aprovado' || status === 'importado' || status === 'validado' || status === 'normalizado' || status === 'extraido') {
         return 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
     }
 
@@ -102,8 +102,8 @@ function SimNaoBadge({ ativo, label }: { ativo: boolean; label: string }) {
     return (
         <span
             className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${ativo
-                    ? 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
-                    : 'border-slate-700 bg-slate-950 text-slate-400'
+                ? 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
+                : 'border-slate-700 bg-slate-950 text-slate-400'
                 }`}
         >
             {ativo ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
