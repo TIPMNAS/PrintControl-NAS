@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
     AlertTriangle,
+    Ban,
     Bot,
     CheckCircle2,
     Clock3,
@@ -9,11 +10,16 @@ import {
     Filter,
     Loader2,
     RefreshCw,
+    RotateCcw,
     Search,
     XCircle,
 } from 'lucide-react'
 
 import { useFilaProcessamento } from '../hooks/useFilaProcessamento'
+import {
+    cancelarPdfFila,
+    reprocessarPdfFila,
+} from '../services/filaProcessamentoService'
 import type { FilaProcessamentoItem } from '../types/filaProcessamento'
 import { formatNumber } from '../utils/formatters'
 
@@ -50,7 +56,13 @@ function getStatusLabel(status: string) {
 }
 
 function getStatusClasses(status: string) {
-    if (status === 'aprovado' || status === 'importado' || status === 'validado' || status === 'normalizado' || status === 'extraido') {
+    if (
+        status === 'aprovado' ||
+        status === 'importado' ||
+        status === 'validado' ||
+        status === 'normalizado' ||
+        status === 'extraido'
+    ) {
         return 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
     }
 
@@ -102,8 +114,8 @@ function SimNaoBadge({ ativo, label }: { ativo: boolean; label: string }) {
     return (
         <span
             className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${ativo
-                ? 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
-                : 'border-slate-700 bg-slate-950 text-slate-400'
+                    ? 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
+                    : 'border-slate-700 bg-slate-950 text-slate-400'
                 }`}
         >
             {ativo ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
@@ -130,12 +142,45 @@ function ResumoCard({
     )
 }
 
+function podeReprocessar(status: string) {
+    return [
+        'aguardando_processamento',
+        'extraido',
+        'normalizado',
+        'validado',
+        'importado',
+        'aprovado',
+        'rejeitado',
+        'erro',
+    ].includes(status)
+}
+
+function podeCancelar(status: string) {
+    return [
+        'aguardando_processamento',
+        'em_processamento',
+        'extraido',
+        'normalizado',
+        'validado',
+        'erro',
+    ].includes(status)
+}
+
+function exigeLimpezaRelatorio(status: string) {
+    return status === 'importado' || status === 'aprovado'
+}
+
 export default function FilaProcessamento() {
     const { data, isLoading, isError, error, refetch, isFetching } =
         useFilaProcessamento()
 
     const [busca, setBusca] = useState('')
     const [statusFiltro, setStatusFiltro] = useState('todos')
+    const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null)
+    const [mensagemAcao, setMensagemAcao] = useState<{
+        tipo: 'sucesso' | 'erro'
+        texto: string
+    } | null>(null)
 
     const itensFiltrados = useMemo(() => {
         const textoBusca = normalizarTexto(busca.trim())
@@ -159,6 +204,120 @@ export default function FilaProcessamento() {
             }) ?? []
         )
     }, [busca, data?.itens, statusFiltro])
+
+    async function executarReprocessamento(item: FilaProcessamentoItem) {
+        const limparRelatorio = exigeLimpezaRelatorio(item.status)
+
+        const mensagemConfirmacao = limparRelatorio
+            ? [
+                `O PDF "${item.nomeArquivo}" já possui relatório importado/aprovado.`,
+                '',
+                'Reprocessar completamente irá remover o relatório e as leituras vinculadas antes de enviar novamente para a fila.',
+                '',
+                'Deseja continuar?',
+            ].join('\n')
+            : [
+                `Deseja recolocar o PDF "${item.nomeArquivo}" na fila de processamento?`,
+                '',
+                'O payload extraído, o payload normalizado, as tentativas e possíveis erros serão limpos.',
+            ].join('\n')
+
+        const confirmado = window.confirm(mensagemConfirmacao)
+
+        if (!confirmado) return
+
+        try {
+            setMensagemAcao(null)
+            setAcaoEmAndamento(`${item.id}:reprocessar`)
+
+            const resultado = await reprocessarPdfFila({
+                filaId: item.id,
+                limparRelatorio,
+                motivo: limparRelatorio
+                    ? 'Reprocessamento completo solicitado pelo WebApp.'
+                    : 'Reprocessamento solicitado pelo WebApp.',
+            })
+
+            if (!resultado.ok) {
+                setMensagemAcao({
+                    tipo: 'erro',
+                    texto:
+                        resultado.mensagem ??
+                        'Não foi possível reprocessar o PDF da fila.',
+                })
+                return
+            }
+
+            setMensagemAcao({
+                tipo: 'sucesso',
+                texto:
+                    resultado.mensagem ??
+                    'PDF recolocado na fila para reprocessamento.',
+            })
+
+            await refetch()
+        } catch (erro) {
+            setMensagemAcao({
+                tipo: 'erro',
+                texto:
+                    erro instanceof Error
+                        ? erro.message
+                        : 'Erro desconhecido ao reprocessar PDF.',
+            })
+        } finally {
+            setAcaoEmAndamento(null)
+        }
+    }
+
+    async function executarCancelamento(item: FilaProcessamentoItem) {
+        const confirmado = window.confirm(
+            [
+                `Deseja cancelar o processamento do PDF "${item.nomeArquivo}"?`,
+                '',
+                'Ele será marcado como rejeitado na fila e não será mais processado automaticamente pelo n8n.',
+            ].join('\n'),
+        )
+
+        if (!confirmado) return
+
+        try {
+            setMensagemAcao(null)
+            setAcaoEmAndamento(`${item.id}:cancelar`)
+
+            const resultado = await cancelarPdfFila({
+                filaId: item.id,
+                motivo: 'Processamento cancelado pelo usuário no WebApp.',
+                forcar: false,
+            })
+
+            if (!resultado.ok) {
+                setMensagemAcao({
+                    tipo: 'erro',
+                    texto:
+                        resultado.mensagem ??
+                        'Não foi possível cancelar o PDF da fila.',
+                })
+                return
+            }
+
+            setMensagemAcao({
+                tipo: 'sucesso',
+                texto: resultado.mensagem ?? 'PDF cancelado/rejeitado com sucesso.',
+            })
+
+            await refetch()
+        } catch (erro) {
+            setMensagemAcao({
+                tipo: 'erro',
+                texto:
+                    erro instanceof Error
+                        ? erro.message
+                        : 'Erro desconhecido ao cancelar PDF.',
+            })
+        } finally {
+            setAcaoEmAndamento(null)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -227,6 +386,40 @@ export default function FilaProcessamento() {
                     Atualizar
                 </button>
             </section>
+
+            {mensagemAcao ? (
+                <section
+                    className={`rounded-2xl border px-5 py-4 text-sm ${mensagemAcao.tipo === 'sucesso'
+                            ? 'border-emerald-900/70 bg-emerald-950/30 text-emerald-200'
+                            : 'border-red-900/70 bg-red-950/30 text-red-200'
+                        }`}
+                >
+                    <div className="flex items-start gap-3">
+                        {mensagemAcao.tipo === 'sucesso' ? (
+                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                        ) : (
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                        )}
+
+                        <div className="flex-1">
+                            <p className="font-semibold">
+                                {mensagemAcao.tipo === 'sucesso'
+                                    ? 'Ação concluída'
+                                    : 'Ação não realizada'}
+                            </p>
+                            <p className="mt-1">{mensagemAcao.texto}</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setMensagemAcao(null)}
+                            className="rounded-lg px-2 py-1 text-xs hover:bg-white/10"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </section>
+            ) : null}
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <ResumoCard
@@ -298,8 +491,8 @@ export default function FilaProcessamento() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-400">
-                        Esta tela é apenas de acompanhamento. Reprocessar ou cancelar será
-                        implementado em etapa futura.
+                        Acompanhe, reprocesse ou cancele PDFs enviados para leitura automática
+                        pelo fluxo n8n/IA.
                     </p>
                 </div>
 
@@ -318,7 +511,7 @@ export default function FilaProcessamento() {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="min-w-[1220px] w-full text-left text-sm">
+                        <table className="min-w-[1420px] w-full text-left text-sm">
                             <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                                 <tr>
                                     <th className="px-5 py-3">Arquivo</th>
@@ -328,72 +521,123 @@ export default function FilaProcessamento() {
                                     <th className="px-5 py-3">Erro</th>
                                     <th className="px-5 py-3">Criado em</th>
                                     <th className="px-5 py-3">Atualizado em</th>
+                                    <th className="px-5 py-3 text-right">Ações</th>
                                 </tr>
                             </thead>
 
                             <tbody className="divide-y divide-slate-800">
-                                {itensFiltrados.map((item) => (
-                                    <tr key={item.id} className="hover:bg-slate-800/40">
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-start gap-3">
-                                                <div className="mt-0.5 rounded-xl bg-violet-950/60 p-2 text-violet-300">
-                                                    <FileText className="h-4 w-4" />
+                                {itensFiltrados.map((item) => {
+                                    const carregandoReprocessar =
+                                        acaoEmAndamento === `${item.id}:reprocessar`
+                                    const carregandoCancelar =
+                                        acaoEmAndamento === `${item.id}:cancelar`
+                                    const existeAcaoEmAndamento = Boolean(acaoEmAndamento)
+
+                                    return (
+                                        <tr key={item.id} className="hover:bg-slate-800/40">
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="mt-0.5 rounded-xl bg-violet-950/60 p-2 text-violet-300">
+                                                        <FileText className="h-4 w-4" />
+                                                    </div>
+
+                                                    <div>
+                                                        <p className="font-semibold text-slate-100">
+                                                            {item.nomeArquivo}
+                                                        </p>
+
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            ID: {item.id.slice(0, 8)}
+                                                        </p>
+
+                                                        <p className="mt-1 max-w-[360px] truncate text-xs text-slate-500">
+                                                            Hash: {item.arquivoHash ?? 'Não informado'}
+                                                        </p>
+                                                    </div>
                                                 </div>
+                                            </td>
 
-                                                <div>
-                                                    <p className="font-semibold text-slate-100">
-                                                        {item.nomeArquivo}
-                                                    </p>
+                                            <td className="px-5 py-4">
+                                                <StatusBadge status={item.status} />
+                                            </td>
 
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        ID: {item.id.slice(0, 8)}
-                                                    </p>
+                                            <td className="px-5 py-4 text-right text-slate-300">
+                                                {formatNumber(item.tentativas)}
+                                            </td>
 
-                                                    <p className="mt-1 max-w-[360px] truncate text-xs text-slate-500">
-                                                        Hash: {item.arquivoHash ?? 'Não informado'}
-                                                    </p>
+                                            <td className="px-5 py-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <SimNaoBadge ativo={item.temPayloadExtraido} label="Extraído" />
+                                                    <SimNaoBadge
+                                                        ativo={item.temPayloadNormalizado}
+                                                        label="Normalizado"
+                                                    />
                                                 </div>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        <td className="px-5 py-4">
-                                            <StatusBadge status={item.status} />
-                                        </td>
+                                            <td className="px-5 py-4">
+                                                {item.mensagemErro ? (
+                                                    <div className="flex max-w-[360px] items-start gap-2 text-xs text-red-300">
+                                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                                        <span>{item.mensagemErro}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-500">Sem erro registrado</span>
+                                                )}
+                                            </td>
 
-                                        <td className="px-5 py-4 text-right text-slate-300">
-                                            {formatNumber(item.tentativas)}
-                                        </td>
+                                            <td className="px-5 py-4 text-slate-400">
+                                                {formatarDataHora(item.criadoEm)}
+                                            </td>
 
-                                        <td className="px-5 py-4">
-                                            <div className="flex flex-wrap gap-2">
-                                                <SimNaoBadge ativo={item.temPayloadExtraido} label="Extraído" />
-                                                <SimNaoBadge
-                                                    ativo={item.temPayloadNormalizado}
-                                                    label="Normalizado"
-                                                />
-                                            </div>
-                                        </td>
+                                            <td className="px-5 py-4 text-slate-400">
+                                                {formatarDataHora(item.atualizadoEm)}
+                                            </td>
 
-                                        <td className="px-5 py-4">
-                                            {item.mensagemErro ? (
-                                                <div className="flex max-w-[360px] items-start gap-2 text-xs text-red-300">
-                                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                                                    <span>{item.mensagemErro}</span>
+                                            <td className="px-5 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    {podeReprocessar(item.status) ? (
+                                                        <button
+                                                            type="button"
+                                                            disabled={existeAcaoEmAndamento}
+                                                            onClick={() => executarReprocessamento(item)}
+                                                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-900/50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {carregandoReprocessar ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                            )}
+                                                            Reprocessar
+                                                        </button>
+                                                    ) : null}
+
+                                                    {podeCancelar(item.status) ? (
+                                                        <button
+                                                            type="button"
+                                                            disabled={existeAcaoEmAndamento}
+                                                            onClick={() => executarCancelamento(item)}
+                                                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-900 bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-900/50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {carregandoCancelar ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Ban className="h-3.5 w-3.5" />
+                                                            )}
+                                                            Cancelar
+                                                        </button>
+                                                    ) : null}
+
+                                                    {!podeReprocessar(item.status) && !podeCancelar(item.status) ? (
+                                                        <span className="text-xs text-slate-500">
+                                                            Sem ação
+                                                        </span>
+                                                    ) : null}
                                                 </div>
-                                            ) : (
-                                                <span className="text-slate-500">Sem erro registrado</span>
-                                            )}
-                                        </td>
-
-                                        <td className="px-5 py-4 text-slate-400">
-                                            {formatarDataHora(item.criadoEm)}
-                                        </td>
-
-                                        <td className="px-5 py-4 text-slate-400">
-                                            {formatarDataHora(item.atualizadoEm)}
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>

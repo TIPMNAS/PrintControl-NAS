@@ -14,6 +14,11 @@ type SupabaseQueryResult<T> = PromiseLike<{
     error: SupabaseError | null
 }>
 
+type SupabaseRpcResult<T> = PromiseLike<{
+    data: T | null
+    error: SupabaseError | null
+}>
+
 type SupabaseTableQuery<T> = {
     select: (columns: string) => SupabaseTableQuery<T>
     order: (
@@ -28,9 +33,33 @@ type SupabaseTableQuery<T> = {
 
 type SupabaseUnsafe = {
     from: <T = Record<string, unknown>>(table: string) => SupabaseTableQuery<T>
+    rpc: <T = unknown>(
+        functionName: string,
+        params?: Record<string, unknown>,
+    ) => SupabaseRpcResult<T>
 }
 
 type FilaRow = Record<string, unknown>
+
+export type AcaoFilaResultado = {
+    ok: boolean
+    mensagem?: string
+    fila_id?: string
+    relatorio_id?: string
+    [key: string]: unknown
+}
+
+export type ReprocessarPdfFilaParams = {
+    filaId: string
+    limparRelatorio?: boolean
+    motivo?: string
+}
+
+export type CancelarPdfFilaParams = {
+    filaId: string
+    motivo?: string
+    forcar?: boolean
+}
 
 const db = supabase as unknown as SupabaseUnsafe
 
@@ -175,4 +204,48 @@ export async function listarFilaProcessamento(): Promise<FilaProcessamentoRespon
         resumo: montarResumo(itens),
         itens,
     }
+}
+
+export async function reprocessarPdfFila({
+    filaId,
+    limparRelatorio = false,
+    motivo = 'Reprocessamento solicitado pelo WebApp.',
+}: ReprocessarPdfFilaParams): Promise<AcaoFilaResultado> {
+    const { data, error } = await db.rpc<AcaoFilaResultado>('rpc_reprocessar_pdf_fila', {
+        p_fila_id: filaId,
+        p_limpar_relatorio: limparRelatorio,
+        p_motivo: motivo,
+    })
+
+    if (error) {
+        throw new Error(`Erro ao reprocessar PDF da fila: ${error.message}`)
+    }
+
+    if (!data) {
+        throw new Error('A RPC de reprocessamento não retornou dados.')
+    }
+
+    return data
+}
+
+export async function cancelarPdfFila({
+    filaId,
+    motivo = 'Cancelado pelo usuário no WebApp.',
+    forcar = false,
+}: CancelarPdfFilaParams): Promise<AcaoFilaResultado> {
+    const { data, error } = await db.rpc<AcaoFilaResultado>('rpc_cancelar_pdf_fila', {
+        p_fila_id: filaId,
+        p_motivo: motivo,
+        p_forcar: forcar,
+    })
+
+    if (error) {
+        throw new Error(`Erro ao cancelar PDF da fila: ${error.message}`)
+    }
+
+    if (!data) {
+        throw new Error('A RPC de cancelamento não retornou dados.')
+    }
+
+    return data
 }
