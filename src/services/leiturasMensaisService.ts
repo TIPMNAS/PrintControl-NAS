@@ -45,6 +45,10 @@ export type LeiturasMensaisFiltros = {
     classificacaoAf?: string
     statusConferencia?: string
     statusRelatorio?: string
+    secretaria?: string
+    setor?: string
+    modelo?: string
+    relatorioOrigem?: string
     somenteDivergentes?: boolean
     relatorioId?: string
     limite?: number
@@ -105,8 +109,15 @@ export type LeiturasMensaisOpcoes = {
     classificacoes: string[]
     modelos: string[]
     secretarias: string[]
+    setores: string[]
+    relatorios: Array<{ value: string; label: string }>
     statusConferencia: string[]
     statusRelatorio: string[]
+    setoresPorSecretaria: Record<string, string[]>
+    modelosPorSecretaria: Record<string, string[]>
+    modelosPorSetor: Record<string, string[]>
+    relatoriosPorMes: Record<string, Array<{ value: string; label: string }>>
+    relatoriosPorClassificacao: Record<string, Array<{ value: string; label: string }>>
 }
 
 export type LeiturasMensaisResponse = {
@@ -231,13 +242,69 @@ function criarResumo(itens: LeituraMensalItem[]): LeiturasMensaisResumo {
     return resumo
 }
 
+function adicionarEmMapa(mapa: Map<string, Set<string>>, chave: string, valor: string) {
+    if (!chave || !valor) return
+
+    if (!mapa.has(chave)) {
+        mapa.set(chave, new Set<string>())
+    }
+
+    mapa.get(chave)?.add(valor)
+}
+
+function adicionarRelatorioEmMapa(
+    mapa: Map<string, Map<string, string>>,
+    chave: string,
+    relatorioId: string,
+    nomeRelatorio: string,
+) {
+    if (!chave || !relatorioId || !nomeRelatorio) return
+
+    if (!mapa.has(chave)) {
+        mapa.set(chave, new Map<string, string>())
+    }
+
+    mapa.get(chave)?.set(relatorioId, nomeRelatorio)
+}
+
+function ordenarLista(valores: Iterable<string>): string[] {
+    return Array.from(valores).sort((a, b) => a.localeCompare(b))
+}
+
+function mapaSetParaRecord(mapa: Map<string, Set<string>>): Record<string, string[]> {
+    return Object.fromEntries(
+        Array.from(mapa.entries()).map(([chave, valores]) => [chave, ordenarLista(valores)]),
+    )
+}
+
+function mapaRelatoriosParaRecord(
+    mapa: Map<string, Map<string, string>>,
+): Record<string, Array<{ value: string; label: string }>> {
+    return Object.fromEntries(
+        Array.from(mapa.entries()).map(([chave, relatorios]) => [
+            chave,
+            Array.from(relatorios.entries())
+                .map(([value, label]) => ({ value, label }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        ]),
+    )
+}
+
 function criarOpcoes(itens: LeituraMensalItem[]): LeiturasMensaisOpcoes {
     const meses = new Map<string, string>()
     const classificacoes = new Set<string>()
     const modelos = new Set<string>()
     const secretarias = new Set<string>()
+    const setores = new Set<string>()
+    const relatorios = new Map<string, string>()
     const statusConferencia = new Set<string>()
     const statusRelatorio = new Set<string>()
+
+    const setoresPorSecretaria = new Map<string, Set<string>>()
+    const modelosPorSecretaria = new Map<string, Set<string>>()
+    const modelosPorSetor = new Map<string, Set<string>>()
+    const relatoriosPorMes = new Map<string, Map<string, string>>()
+    const relatoriosPorClassificacao = new Map<string, Map<string, string>>()
 
     for (const item of itens) {
         if (item.mesReferenciaFiltro) {
@@ -246,19 +313,48 @@ function criarOpcoes(itens: LeituraMensalItem[]): LeiturasMensaisOpcoes {
         if (item.classificacaoAf) classificacoes.add(item.classificacaoAf)
         if (item.modelo) modelos.add(item.modelo)
         if (item.secretaria) secretarias.add(item.secretaria)
+        if (item.setor) setores.add(item.setor)
+        if (item.relatorioId && item.nomeRelatorio) {
+            relatorios.set(item.relatorioId, item.nomeRelatorio)
+            adicionarRelatorioEmMapa(
+                relatoriosPorMes,
+                item.mesReferenciaFiltro,
+                item.relatorioId,
+                item.nomeRelatorio,
+            )
+            adicionarRelatorioEmMapa(
+                relatoriosPorClassificacao,
+                item.classificacaoAf,
+                item.relatorioId,
+                item.nomeRelatorio,
+            )
+        }
         if (item.statusConferencia) statusConferencia.add(item.statusConferencia)
         if (item.statusRelatorio) statusRelatorio.add(item.statusRelatorio)
+
+        adicionarEmMapa(setoresPorSecretaria, item.secretaria, item.setor)
+        adicionarEmMapa(modelosPorSecretaria, item.secretaria, item.modelo)
+        adicionarEmMapa(modelosPorSetor, item.setor, item.modelo)
     }
 
     return {
         meses: Array.from(meses.entries())
             .map(([value, label]) => ({ value, label }))
             .sort((a, b) => b.value.localeCompare(a.value)),
-        classificacoes: Array.from(classificacoes).sort((a, b) => a.localeCompare(b)),
-        modelos: Array.from(modelos).sort((a, b) => a.localeCompare(b)),
-        secretarias: Array.from(secretarias).sort((a, b) => a.localeCompare(b)),
-        statusConferencia: Array.from(statusConferencia).sort((a, b) => a.localeCompare(b)),
-        statusRelatorio: Array.from(statusRelatorio).sort((a, b) => a.localeCompare(b)),
+        classificacoes: ordenarLista(classificacoes),
+        modelos: ordenarLista(modelos),
+        secretarias: ordenarLista(secretarias),
+        setores: ordenarLista(setores),
+        relatorios: Array.from(relatorios.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+        statusConferencia: ordenarLista(statusConferencia),
+        statusRelatorio: ordenarLista(statusRelatorio),
+        setoresPorSecretaria: mapaSetParaRecord(setoresPorSecretaria),
+        modelosPorSecretaria: mapaSetParaRecord(modelosPorSecretaria),
+        modelosPorSetor: mapaSetParaRecord(modelosPorSetor),
+        relatoriosPorMes: mapaRelatoriosParaRecord(relatoriosPorMes),
+        relatoriosPorClassificacao: mapaRelatoriosParaRecord(relatoriosPorClassificacao),
     }
 }
 
@@ -337,6 +433,10 @@ function aplicarFiltros(
     const classificacaoAf = normalizarTexto(filtros.classificacaoAf)
     const statusConferencia = String(filtros.statusConferencia ?? '').toLowerCase().trim()
     const statusRelatorio = String(filtros.statusRelatorio ?? '').toLowerCase().trim()
+    const secretaria = normalizarTexto(filtros.secretaria)
+    const setor = normalizarTexto(filtros.setor)
+    const modelo = normalizarTexto(filtros.modelo)
+    const relatorioOrigem = String(filtros.relatorioOrigem ?? '').trim()
 
     return itens.filter((item) => {
         if (filtros.relatorioId && item.relatorioId !== filtros.relatorioId) {
@@ -352,6 +452,22 @@ function aplicarFiltros(
         }
 
         if (statusRelatorio && statusRelatorio !== 'todos' && item.statusRelatorio !== statusRelatorio) {
+            return false
+        }
+
+        if (secretaria && secretaria !== 'TODOS' && normalizarTexto(item.secretaria) !== secretaria) {
+            return false
+        }
+
+        if (setor && setor !== 'TODOS' && normalizarTexto(item.setor) !== setor) {
+            return false
+        }
+
+        if (modelo && modelo !== 'TODOS' && normalizarTexto(item.modelo) !== modelo) {
+            return false
+        }
+
+        if (relatorioOrigem && relatorioOrigem !== 'todos' && item.relatorioId !== relatorioOrigem) {
             return false
         }
 

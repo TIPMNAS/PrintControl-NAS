@@ -147,6 +147,19 @@ function montarNomeArquivoCsv() {
     return `leituras-mensais-printcontrol-${data}.csv`
 }
 
+function ordenarUnicos(valores: string[]): string[] {
+    return Array.from(new Set(valores.filter(Boolean))).sort((a, b) => a.localeCompare(b))
+}
+
+function intersectarRelatorios(
+    principal: Array<{ value: string; label: string }>,
+    restricao: Array<{ value: string; label: string }>,
+): Array<{ value: string; label: string }> {
+    const permitidos = new Set(restricao.map((item) => item.value))
+
+    return principal.filter((item) => permitidos.has(item.value))
+}
+
 function gerarCsvLeituras(itens: LeituraMensalItem[]): string {
     const cabecalho = [
         'Mês referência',
@@ -207,6 +220,10 @@ export default function Leituras() {
     const [classificacaoAf, setClassificacaoAf] = useState('todos')
     const [statusConferencia, setStatusConferencia] = useState('todos')
     const [statusRelatorio, setStatusRelatorio] = useState('aprovado')
+    const [secretaria, setSecretaria] = useState('todos')
+    const [setor, setSetor] = useState('todos')
+    const [modelo, setModelo] = useState('todos')
+    const [relatorioOrigem, setRelatorioOrigem] = useState('todos')
     const [somenteDivergentes, setSomenteDivergentes] = useState(false)
 
     const [data, setData] = useState<LeiturasMensaisResponse | null>(null)
@@ -221,10 +238,25 @@ export default function Leituras() {
             classificacaoAf: classificacaoAf === 'todos' ? undefined : classificacaoAf,
             statusConferencia,
             statusRelatorio,
+            secretaria: secretaria === 'todos' ? undefined : secretaria,
+            setor: setor === 'todos' ? undefined : setor,
+            modelo: modelo === 'todos' ? undefined : modelo,
+            relatorioOrigem: relatorioOrigem === 'todos' ? undefined : relatorioOrigem,
             somenteDivergentes,
             limite: 5000,
         }),
-        [busca, classificacaoAf, mesReferencia, somenteDivergentes, statusConferencia, statusRelatorio],
+        [
+            busca,
+            classificacaoAf,
+            mesReferencia,
+            modelo,
+            relatorioOrigem,
+            secretaria,
+            setor,
+            somenteDivergentes,
+            statusConferencia,
+            statusRelatorio,
+        ],
     )
 
     async function carregarLeituras(mostrarLoadingInicial = false) {
@@ -264,12 +296,84 @@ export default function Leituras() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filtros])
 
+    const resumo = data?.resumo
+    const itens = data?.itens ?? []
+    const opcoes = data?.opcoes
+
+    const setoresDisponiveis = useMemo(() => {
+        if (!opcoes) return []
+
+        if (secretaria !== 'todos') {
+            return ordenarUnicos(opcoes.setoresPorSecretaria?.[secretaria] ?? [])
+        }
+
+        return opcoes.setores
+    }, [opcoes, secretaria])
+
+    const modelosDisponiveis = useMemo(() => {
+        if (!opcoes) return []
+
+        if (setor !== 'todos') {
+            return ordenarUnicos(opcoes.modelosPorSetor?.[setor] ?? [])
+        }
+
+        if (secretaria !== 'todos') {
+            return ordenarUnicos(opcoes.modelosPorSecretaria?.[secretaria] ?? [])
+        }
+
+        return opcoes.modelos
+    }, [opcoes, secretaria, setor])
+
+    const relatoriosDisponiveis = useMemo(() => {
+        if (!opcoes) return []
+
+        let relatorios = opcoes.relatorios
+
+        if (mesReferencia !== 'todos') {
+            relatorios = opcoes.relatoriosPorMes?.[mesReferencia] ?? []
+        }
+
+        if (classificacaoAf !== 'todos') {
+            const porClassificacao = opcoes.relatoriosPorClassificacao?.[classificacaoAf] ?? []
+            relatorios = mesReferencia !== 'todos'
+                ? intersectarRelatorios(relatorios, porClassificacao)
+                : porClassificacao
+        }
+
+        return relatorios
+    }, [classificacaoAf, mesReferencia, opcoes])
+
+    useEffect(() => {
+        if (setor !== 'todos' && !setoresDisponiveis.includes(setor)) {
+            setSetor('todos')
+        }
+    }, [setor, setoresDisponiveis])
+
+    useEffect(() => {
+        if (modelo !== 'todos' && !modelosDisponiveis.includes(modelo)) {
+            setModelo('todos')
+        }
+    }, [modelo, modelosDisponiveis])
+
+    useEffect(() => {
+        if (
+            relatorioOrigem !== 'todos' &&
+            !relatoriosDisponiveis.some((relatorio) => relatorio.value === relatorioOrigem)
+        ) {
+            setRelatorioOrigem('todos')
+        }
+    }, [relatorioOrigem, relatoriosDisponiveis])
+
     function limparFiltros() {
         setBusca('')
         setMesReferencia('todos')
         setClassificacaoAf('todos')
         setStatusConferencia('todos')
         setStatusRelatorio('aprovado')
+        setSecretaria('todos')
+        setSetor('todos')
+        setModelo('todos')
+        setRelatorioOrigem('todos')
         setSomenteDivergentes(false)
     }
 
@@ -318,9 +422,18 @@ export default function Leituras() {
         )
     }
 
-    const resumo = data?.resumo
-    const itens = data?.itens ?? []
-    const opcoes = data?.opcoes
+    const filtrosAtivos = [
+        busca.trim() ? `Busca: ${busca.trim()}` : null,
+        mesReferencia !== 'todos' ? `Mês: ${opcoes?.meses.find((mes) => mes.value === mesReferencia)?.label ?? mesReferencia}` : null,
+        classificacaoAf !== 'todos' ? `AF: ${classificacaoAf}` : null,
+        relatorioOrigem !== 'todos' ? `Relatório: ${opcoes?.relatorios.find((relatorio) => relatorio.value === relatorioOrigem)?.label ?? relatorioOrigem}` : null,
+        secretaria !== 'todos' ? `Secretaria: ${secretaria}` : null,
+        setor !== 'todos' ? `Setor: ${setor}` : null,
+        modelo !== 'todos' ? `Modelo: ${modelo}` : null,
+        statusConferencia !== 'todos' ? `Status leitura: ${formatStatus(statusConferencia)}` : null,
+        statusRelatorio !== 'aprovado' ? `Status relatório: ${statusRelatorio === 'todos' ? 'Todos' : formatStatus(statusRelatorio)}` : null,
+        somenteDivergentes ? 'Somente divergentes' : null,
+    ].filter((item): item is string => Boolean(item))
 
     return (
         <div className="space-y-6">
@@ -382,91 +495,210 @@ export default function Leituras() {
             </section>
 
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm">
-                <div className="grid gap-3 xl:grid-cols-[1.2fr_180px_220px_190px_170px_auto]">
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
-                        <input
-                            value={busca}
-                            onChange={(event) => setBusca(event.target.value)}
-                            placeholder="Buscar por série, modelo, secretaria, setor ou relatório..."
-                            className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-500"
-                        />
+                <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 className="flex items-center gap-2 text-base font-semibold text-white">
+                            <Filter className="h-5 w-5 text-violet-300" />
+                            Filtros das leituras
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-400">
+                            Use os filtros combinados para localizar leituras por mês, relatório, local, modelo e status.
+                        </p>
                     </div>
 
-                    <select
-                        value={mesReferencia}
-                        onChange={(event) => setMesReferencia(event.target.value)}
-                        className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
-                    >
-                        <option value="todos">Todos os meses</option>
-                        {opcoes?.meses.map((mes) => (
-                            <option key={mes.value} value={mes.value}>
-                                {mes.label}
-                            </option>
-                        ))}
-                    </select>
-
-                    <select
-                        value={classificacaoAf}
-                        onChange={(event) => setClassificacaoAf(event.target.value)}
-                        className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
-                    >
-                        <option value="todos">Todas as classificações</option>
-                        {opcoes?.classificacoes.map((classificacao) => (
-                            <option key={classificacao} value={classificacao}>
-                                {classificacao}
-                            </option>
-                        ))}
-                    </select>
-
-                    <select
-                        value={statusConferencia}
-                        onChange={(event) => setStatusConferencia(event.target.value)}
-                        className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
-                    >
-                        <option value="todos">Todos os status leitura</option>
-                        {opcoes?.statusConferencia.map((status) => (
-                            <option key={status} value={status}>
-                                {formatStatus(status)}
-                            </option>
-                        ))}
-                    </select>
-
-                    <select
-                        value={statusRelatorio}
-                        onChange={(event) => setStatusRelatorio(event.target.value)}
-                        className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
-                    >
-                        <option value="aprovado">Relatórios aprovados</option>
-                        <option value="todos">Todos os relatórios</option>
-                        {opcoes?.statusRelatorio
-                            .filter((status) => status !== 'aprovado')
-                            .map((status) => (
-                                <option key={status} value={status}>
-                                    {formatStatus(status)}
-                                </option>
-                            ))}
-                    </select>
-
-                    <button
-                        type="button"
-                        onClick={limparFiltros}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-                    >
-                        <Filter className="h-4 w-4" />
-                        Limpar
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-violet-800 bg-violet-950/40 px-3 py-1 text-xs font-semibold text-violet-200">
+                            {formatNumber(itens.length)} leitura(s) exibida(s)
+                        </span>
+                        <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-semibold text-slate-300">
+                            {formatNumber(filtrosAtivos.length)} filtro(s) ativo(s)
+                        </span>
+                        <button
+                            type="button"
+                            onClick={limparFiltros}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                        >
+                            <Filter className="h-4 w-4" />
+                            Limpar filtros
+                        </button>
+                    </div>
                 </div>
 
-                <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-                    <input
-                        type="checkbox"
-                        checked={somenteDivergentes}
-                        onChange={(event) => setSomenteDivergentes(event.target.checked)}
-                        className="h-4 w-4 rounded border-slate-700 bg-slate-950"
-                    />
-                    Mostrar somente leituras divergentes
-                </label>
+                <div className="mt-4 grid gap-4">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            1. Busca e competência
+                        </p>
+
+                        <div className="grid gap-3 xl:grid-cols-[1.5fr_180px_220px_220px]">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                                <input
+                                    value={busca}
+                                    onChange={(event) => setBusca(event.target.value)}
+                                    placeholder="Buscar por série, modelo, secretaria, setor ou relatório..."
+                                    className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-500"
+                                />
+                            </div>
+
+                            <select
+                                value={mesReferencia}
+                                onChange={(event) => setMesReferencia(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todos os meses</option>
+                                {opcoes?.meses.map((mes) => (
+                                    <option key={mes.value} value={mes.value}>
+                                        {mes.label}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={classificacaoAf}
+                                onChange={(event) => setClassificacaoAf(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todas as classificações</option>
+                                {opcoes?.classificacoes.map((classificacao) => (
+                                    <option key={classificacao} value={classificacao}>
+                                        {classificacao}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={relatorioOrigem}
+                                onChange={(event) => setRelatorioOrigem(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todos os relatórios</option>
+                                {relatoriosDisponiveis.map((relatorio) => (
+                                    <option key={relatorio.value} value={relatorio.value}>
+                                        {relatorio.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            2. Localização e equipamento
+                        </p>
+                        <p className="mb-3 text-xs text-slate-500">
+                            Os filtros são dependentes: ao escolher uma secretaria, a lista de setores e modelos é ajustada automaticamente.
+                        </p>
+
+                        <div className="grid gap-3 lg:grid-cols-3">
+                            <select
+                                value={secretaria}
+                                onChange={(event) => {
+                                    setSecretaria(event.target.value)
+                                    setSetor('todos')
+                                }}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todas as secretarias/sites</option>
+                                {opcoes?.secretarias.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={setor}
+                                onChange={(event) => setSetor(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todos os setores/deptos</option>
+                                {setoresDisponiveis.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={modelo}
+                                onChange={(event) => setModelo(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todos os modelos</option>
+                                {modelosDisponiveis.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            3. Conferência e status
+                        </p>
+
+                        <div className="grid gap-3 lg:grid-cols-[220px_220px_1fr]">
+                            <select
+                                value={statusConferencia}
+                                onChange={(event) => setStatusConferencia(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="todos">Todos os status leitura</option>
+                                {opcoes?.statusConferencia.map((status) => (
+                                    <option key={status} value={status}>
+                                        {formatStatus(status)}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={statusRelatorio}
+                                onChange={(event) => setStatusRelatorio(event.target.value)}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                            >
+                                <option value="aprovado">Relatórios aprovados</option>
+                                <option value="todos">Todos os relatórios</option>
+                                {opcoes?.statusRelatorio
+                                    .filter((status) => status !== 'aprovado')
+                                    .map((status) => (
+                                        <option key={status} value={status}>
+                                            {formatStatus(status)}
+                                        </option>
+                                    ))}
+                            </select>
+
+                            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={somenteDivergentes}
+                                    onChange={(event) => setSomenteDivergentes(event.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-700 bg-slate-950"
+                                />
+                                Mostrar somente leituras divergentes
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                {filtrosAtivos.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
+                        {filtrosAtivos.map((filtro) => (
+                            <span
+                                key={filtro}
+                                className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-medium text-slate-300"
+                            >
+                                {filtro}
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm text-slate-400">
+                        Nenhum filtro específico aplicado. Por padrão, a tela mostra somente relatórios aprovados.
+                    </div>
+                )}
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-sm">
@@ -476,8 +708,8 @@ export default function Leituras() {
                         Leituras importadas
                     </h2>
                     <p className="mt-1 text-sm text-slate-400">
-                        Cada linha representa uma série/equipamento importado de um relatório PDF.
-                        A exportação CSV respeita os filtros aplicados na tela.
+                        Exibindo {formatNumber(itens.length)} leitura(s) conforme os filtros aplicados.
+                        A exportação CSV respeita exatamente este resultado.
                     </p>
                 </div>
 
