@@ -4,6 +4,7 @@ import {
     AlertTriangle,
     CheckCircle2,
     Database,
+    Download,
     FileText,
     Filter,
     Loader2,
@@ -99,6 +100,105 @@ function ResumoCard({
     )
 }
 
+function csvEscape(value: unknown): string {
+    const texto = String(value ?? '')
+        .replace(/\r?\n|\r/g, ' ')
+        .replace(/"/g, '""')
+
+    return `"${texto}"`
+}
+
+function formatDecimalCsv(value: number, casas = 2): string {
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: casas,
+        maximumFractionDigits: casas,
+    }).format(value)
+}
+
+function formatInteiroCsv(value: number): string {
+    return new Intl.NumberFormat('pt-BR', {
+        maximumFractionDigits: 0,
+    }).format(value)
+}
+
+function baixarArquivoCsv(nomeArquivo: string, conteudo: string) {
+    const blob = new Blob([`\uFEFF${conteudo}`], {
+        type: 'text/csv;charset=utf-8;',
+    })
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = nomeArquivo
+    link.style.display = 'none'
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+}
+
+function montarNomeArquivoCsv() {
+    const agora = new Date()
+    const data = agora.toISOString().slice(0, 10)
+
+    return `leituras-mensais-printcontrol-${data}.csv`
+}
+
+function gerarCsvLeituras(itens: LeituraMensalItem[]): string {
+    const cabecalho = [
+        'Mês referência',
+        'Classificação AF',
+        'Relatório origem',
+        'Modelo',
+        'Série',
+        'Secretaria/Site',
+        'Setor/Departamento',
+        'Ant. PB',
+        'Atu. PB',
+        'Saldo PB',
+        'Ant. Cor',
+        'Atu. Cor',
+        'Saldo Cor',
+        'Total páginas',
+        'Total PDF',
+        'Total calculado',
+        'Diferença',
+        'Status conferência',
+        'Status relatório',
+        'Divergente',
+    ]
+
+    const linhas = itens.map((item) => [
+        item.mesReferenciaFormatado,
+        item.classificacaoAf,
+        item.nomeRelatorio,
+        item.modelo,
+        item.serie,
+        item.secretaria,
+        item.setor,
+        formatInteiroCsv(item.antPb),
+        formatInteiroCsv(item.atuPb),
+        formatInteiroCsv(item.saldoPb),
+        formatInteiroCsv(item.antCor),
+        formatInteiroCsv(item.atuCor),
+        formatInteiroCsv(item.saldoCor),
+        formatInteiroCsv(item.totalPaginas),
+        formatDecimalCsv(item.totalGeralPdf),
+        formatDecimalCsv(item.totalCalculado),
+        formatDecimalCsv(item.diferencaTotal),
+        formatStatus(item.statusConferencia),
+        formatStatus(item.statusRelatorio),
+        item.divergente ? 'Sim' : 'Não',
+    ])
+
+    return [cabecalho, ...linhas]
+        .map((linha) => linha.map(csvEscape).join(';'))
+        .join('\n')
+}
+
 export default function Leituras() {
     const navigate = useNavigate()
 
@@ -173,6 +273,18 @@ export default function Leituras() {
         setSomenteDivergentes(false)
     }
 
+    function exportarCsvLeituras() {
+        const itensParaExportar = data?.itens ?? []
+
+        if (itensParaExportar.length === 0) {
+            window.alert('Não há leituras para exportar com os filtros atuais.')
+            return
+        }
+
+        const csv = gerarCsvLeituras(itensParaExportar)
+        baixarArquivoCsv(montarNomeArquivoCsv(), csv)
+    }
+
     if (isLoading) {
         return (
             <div className="flex min-h-[420px] items-center justify-center">
@@ -222,14 +334,26 @@ export default function Leituras() {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => carregarLeituras(false)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-                >
-                    <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-                    Atualizar
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                        type="button"
+                        onClick={exportarCsvLeituras}
+                        disabled={itens.length === 0}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-900/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Download className="h-4 w-4" />
+                        Exportar CSV
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => carregarLeituras(false)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                        Atualizar
+                    </button>
+                </div>
             </section>
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -353,6 +477,7 @@ export default function Leituras() {
                     </h2>
                     <p className="mt-1 text-sm text-slate-400">
                         Cada linha representa uma série/equipamento importado de um relatório PDF.
+                        A exportação CSV respeita os filtros aplicados na tela.
                     </p>
                 </div>
 
