@@ -1,72 +1,70 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from '../lib/supabaseClient'
 import type {
   RelatorioDetalheDivergencia,
   RelatorioDetalheLeitura,
   RelatorioDetalheResponse,
-} from "../types/relatorioDetalhe";
+} from '../types/relatorioDetalhe'
 
 type SupabaseLooseClient = {
-  from: (table: string) => any;
-};
+  from: (table: string) => any
+}
 
-const db = supabase as unknown as SupabaseLooseClient;
-
-export const RELATORIOS_PDF_BUCKET = "relatorios-impressoras-pdf";
+const db = supabase as unknown as SupabaseLooseClient
 
 type RelatorioRow = {
-  id: string;
-  contrato_id: string | null;
-  mes_referencia: string;
-  classificacao_af: string | null;
-  valor_bruto_pdf: number | string | null;
-  retencao_pdf: number | string | null;
-  valor_total_pdf: number | string | null;
-  valor_total_calculado: number | string | null;
-  arquivo_path: string | null;
-  status: string;
-  json_extraido: unknown;
-  created_at: string;
-};
+  id: string
+  contrato_id: string | null
+  mes_referencia: string
+  classificacao_af: string | null
+  valor_bruto_pdf: number | string | null
+  retencao_pdf: number | string | null
+  valor_total_pdf: number | string | null
+  valor_total_calculado: number | string | null
+  arquivo_path: string | null
+  status: string
+  json_extraido: unknown
+  created_at: string
+}
 
 type LeituraRow = {
-  id: string;
-  equipamento_id: string | null;
-  modelo_texto_pdf: string | null;
-  serie_texto_pdf: string | null;
-  site_texto_pdf: string | null;
-  depto_texto_pdf: string | null;
-  ant_pb: number | string | null;
-  atu_pb: number | string | null;
-  saldo_pb: number | string | null;
-  ant_cor: number | string | null;
-  atu_cor: number | string | null;
-  saldo_cor: number | string | null;
-  total_geral_pdf: number | string | null;
-  total_calculado: number | string | null;
-  divergente: boolean | null;
-};
+  id: string
+  equipamento_id: string | null
+  modelo_texto_pdf: string | null
+  serie_texto_pdf: string | null
+  site_texto_pdf: string | null
+  depto_texto_pdf: string | null
+  ant_pb: number | string | null
+  atu_pb: number | string | null
+  saldo_pb: number | string | null
+  ant_cor: number | string | null
+  atu_cor: number | string | null
+  saldo_cor: number | string | null
+  total_geral_pdf: number | string | null
+  total_calculado: number | string | null
+  divergente: boolean | null
+}
 
 type DivergenciaRow = {
-  id: string;
-  tipo: string;
-  descricao: string;
-  valor_pdf: string | null;
-  valor_calculado: string | null;
-  resolvida: boolean | null;
-  created_at: string;
-};
+  id: string
+  tipo: string
+  descricao: string
+  valor_pdf: string | null
+  valor_calculado: string | null
+  resolvida: boolean | null
+  created_at: string
+}
 
 function toNumber(value: number | string | null | undefined): number {
-  return Number(value ?? 0);
+  return Number(value ?? 0)
 }
 
 function extrairNomeArquivo(arquivoPath: string | null): string {
   if (!arquivoPath) {
-    return "Relatório sem arquivo vinculado";
+    return 'Relatório sem arquivo vinculado'
   }
 
-  const partes = arquivoPath.split("/");
-  return partes[partes.length - 1] || arquivoPath;
+  const partes = arquivoPath.split('/')
+  return partes[partes.length - 1] || arquivoPath
 }
 
 function normalizarLeitura(row: LeituraRow): RelatorioDetalheLeitura {
@@ -86,12 +84,10 @@ function normalizarLeitura(row: LeituraRow): RelatorioDetalheLeitura {
     totalGeralPdf: toNumber(row.total_geral_pdf),
     totalCalculado: toNumber(row.total_calculado),
     divergente: Boolean(row.divergente),
-  };
+  }
 }
 
-function normalizarDivergencia(
-  row: DivergenciaRow,
-): RelatorioDetalheDivergencia {
+function normalizarDivergencia(row: DivergenciaRow): RelatorioDetalheDivergencia {
   return {
     id: row.id,
     tipo: row.tipo,
@@ -100,14 +96,14 @@ function normalizarDivergencia(
     valorCalculado: row.valor_calculado,
     resolvida: Boolean(row.resolvida),
     createdAt: row.created_at,
-  };
+  }
 }
 
 export async function buscarRelatorioDetalhe(
   relatorioId: string,
 ): Promise<RelatorioDetalheResponse> {
   const { data: relatorioRaw, error: relatorioError } = await db
-    .from("relatorios_pdf")
+    .from('relatorios_pdf')
     .select(
       `
         id,
@@ -124,21 +120,21 @@ export async function buscarRelatorioDetalhe(
         created_at
       `,
     )
-    .eq("id", relatorioId)
-    .maybeSingle();
+    .eq('id', relatorioId)
+    .maybeSingle()
 
   if (relatorioError) {
-    throw new Error(`Erro ao buscar relatório PDF: ${relatorioError.message}`);
+    throw new Error(`Erro ao buscar relatório PDF: ${relatorioError.message}`)
   }
 
   if (!relatorioRaw) {
-    throw new Error("Relatório PDF não encontrado ou sem permissão de acesso.");
+    throw new Error('Relatório PDF não encontrado ou sem permissão de acesso.')
   }
 
-  const relatorio = relatorioRaw as RelatorioRow;
+  const relatorio = relatorioRaw as RelatorioRow
 
   const { data: leiturasRaw, error: leiturasError } = await db
-    .from("leituras_mensais")
+    .from('leituras_mensais')
     .select(
       `
         id,
@@ -158,21 +154,19 @@ export async function buscarRelatorioDetalhe(
         divergente
       `,
     )
-    .eq("relatorio_id", relatorioId)
-    .order("modelo_texto_pdf", { ascending: true });
+    .eq('relatorio_id', relatorioId)
+    .order('modelo_texto_pdf', { ascending: true })
 
   if (leiturasError) {
-    throw new Error(
-      `Erro ao buscar leituras do relatório: ${leiturasError.message}`,
-    );
+    throw new Error(`Erro ao buscar leituras do relatório: ${leiturasError.message}`)
   }
 
-  const leituras = ((leiturasRaw ?? []) as LeituraRow[]).map(normalizarLeitura);
+  const leituras = ((leiturasRaw ?? []) as LeituraRow[]).map(normalizarLeitura)
 
-  let divergencias: RelatorioDetalheDivergencia[] = [];
+  let divergencias: RelatorioDetalheDivergencia[] = []
 
   const { data: divergenciasRaw, error: divergenciasError } = await db
-    .from("divergencias_importacao")
+    .from('divergencias_importacao')
     .select(
       `
         id,
@@ -184,31 +178,28 @@ export async function buscarRelatorioDetalhe(
         created_at
       `,
     )
-    .eq("relatorio_id", relatorioId)
-    .order("created_at", { ascending: false });
+    .eq('relatorio_id', relatorioId)
+    .order('created_at', { ascending: false })
 
   if (!divergenciasError) {
     divergencias = ((divergenciasRaw ?? []) as DivergenciaRow[]).map(
       normalizarDivergencia,
-    );
+    )
   }
 
-  const paginasPb = leituras.reduce((total, item) => total + item.saldoPb, 0);
-  const paginasColoridas = leituras.reduce(
-    (total, item) => total + item.saldoCor,
-    0,
-  );
-  const totalPaginas = paginasPb + paginasColoridas;
+  const paginasPb = leituras.reduce((total, item) => total + item.saldoPb, 0)
+  const paginasColoridas = leituras.reduce((total, item) => total + item.saldoCor, 0)
+  const totalPaginas = paginasPb + paginasColoridas
 
   const valorItensPdf = leituras.reduce(
     (total, item) => total + item.totalGeralPdf,
     0,
-  );
+  )
 
   const valorItensCalculado = leituras.reduce(
     (total, item) => total + item.totalCalculado,
     0,
-  );
+  )
 
   return {
     relatorio: {
@@ -238,38 +229,5 @@ export async function buscarRelatorioDetalhe(
     },
     leituras,
     divergencias,
-  };
-}
-
-export async function criarUrlTemporariaPdfOriginal(
-  arquivoPath: string | null,
-  expiresInSeconds = 60 * 5,
-): Promise<string> {
-  if (!arquivoPath) {
-    throw new Error(
-      "Este relatório não possui caminho do PDF original vinculado.",
-    );
   }
-
-  const { data, error } = await supabase.storage
-    .from(RELATORIOS_PDF_BUCKET)
-    .createSignedUrl(arquivoPath, expiresInSeconds);
-
-  if (error) {
-    throw new Error(`Erro ao gerar link temporário do PDF: ${error.message}`);
-  }
-
-  if (!data?.signedUrl) {
-    throw new Error("O Supabase não retornou a URL temporária do PDF.");
-  }
-
-  return data.signedUrl;
-}
-
-export function montarUrlDownloadPdf(
-  signedUrl: string,
-  nomeArquivo: string,
-): string {
-  const separador = signedUrl.includes("?") ? "&" : "?";
-  return `${signedUrl}${separador}download=${encodeURIComponent(nomeArquivo)}`;
 }

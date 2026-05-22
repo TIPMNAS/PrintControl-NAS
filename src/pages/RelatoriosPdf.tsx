@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
+  Bot,
   CheckCircle2,
   Clock3,
   Eye,
@@ -9,14 +10,24 @@ import {
   Filter,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Search,
   Upload,
   XCircle,
 } from 'lucide-react'
 
 import { useRelatoriosPdf } from '../hooks/useRelatoriosPdf'
+import {
+  enviarRelatorioPdfParaProcessamento,
+  type UploadRelatorioPdfProgresso,
+  type UploadRelatorioPdfResultado,
+} from '../services/uploadRelatorioPdfService'
 import type { RelatorioPdfItem } from '../types/relatoriosPdf'
 import { formatCurrency, formatNumber } from '../utils/formatters'
+
+function getMesAtualInput() {
+  return new Date().toISOString().slice(0, 7)
+}
 
 function formatarMesReferencia(value: string) {
   if (!value) return 'Não informado'
@@ -133,14 +144,58 @@ function ResumoCard({
   )
 }
 
+function getMensagemUploadClasses(tipo: 'sucesso' | 'erro' | 'aviso') {
+  if (tipo === 'erro') {
+    return 'border-red-900/70 bg-red-950/30 text-red-200'
+  }
+
+  if (tipo === 'aviso') {
+    return 'border-amber-900/70 bg-amber-950/30 text-amber-100'
+  }
+
+  return 'border-emerald-900/70 bg-emerald-950/30 text-emerald-100'
+}
+
+function getMensagemUploadIcon(tipo: 'sucesso' | 'erro' | 'aviso') {
+  if (tipo === 'erro') {
+    return <XCircle className="h-5 w-5 shrink-0" />
+  }
+
+  if (tipo === 'aviso') {
+    return <AlertCircle className="h-5 w-5 shrink-0" />
+  }
+
+  return <CheckCircle2 className="h-5 w-5 shrink-0" />
+}
+
+const CLASSIFICACOES_AF = [
+  { value: 'ADMINISTRACAO', label: 'ADMINISTRAÇÃO' },
+  { value: 'ASSISTENCIA SOCIAL', label: 'ASSISTÊNCIA SOCIAL' },
+  { value: 'SAUDE', label: 'SAÚDE' },
+]
+
 export default function RelatoriosPdf() {
   const navigate = useNavigate()
+  const inputArquivoRef = useRef<HTMLInputElement | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useRelatoriosPdf()
 
   const [busca, setBusca] = useState('')
   const [statusFiltro, setStatusFiltro] = useState('todos')
   const [mesFiltro, setMesFiltro] = useState('todos')
+
+  const [modalUploadAberto, setModalUploadAberto] = useState(false)
+  const [arquivoUpload, setArquivoUpload] = useState<File | null>(null)
+  const [mesUpload, setMesUpload] = useState(getMesAtualInput())
+  const [classificacaoUpload, setClassificacaoUpload] = useState('')
+  const [observacoesUpload, setObservacoesUpload] = useState('')
+  const [uploadEmAndamento, setUploadEmAndamento] = useState(false)
+  const [progressoUpload, setProgressoUpload] = useState<UploadRelatorioPdfProgresso | null>(null)
+  const [ultimoResultadoUpload, setUltimoResultadoUpload] = useState<UploadRelatorioPdfResultado | null>(null)
+  const [mensagemUpload, setMensagemUpload] = useState<{
+    tipo: 'sucesso' | 'erro' | 'aviso'
+    texto: string
+  } | null>(null)
 
   const mesesDisponiveis = useMemo(() => {
     const meses = new Set<string>()
@@ -215,6 +270,92 @@ export default function RelatoriosPdf() {
     )
   }, [relatoriosFiltrados])
 
+  function limparCampoArquivo() {
+    setArquivoUpload(null)
+
+    if (inputArquivoRef.current) {
+      inputArquivoRef.current.value = ''
+    }
+  }
+
+  function abrirModalUpload() {
+    setModalUploadAberto(true)
+    prepararNovoUpload()
+  }
+
+  function fecharModalUpload() {
+    if (uploadEmAndamento) return
+
+    setModalUploadAberto(false)
+  }
+
+  function irParaFilaProcessamento() {
+    setModalUploadAberto(false)
+    navigate('/fila-processamento')
+  }
+
+  function prepararNovoUpload() {
+    limparCampoArquivo()
+    setMesUpload(getMesAtualInput())
+    setClassificacaoUpload('')
+    setObservacoesUpload('')
+    setMensagemUpload(null)
+    setProgressoUpload(null)
+    setUltimoResultadoUpload(null)
+  }
+
+  async function executarUploadPdf() {
+    if (!arquivoUpload) {
+      setMensagemUpload({
+        tipo: 'erro',
+        texto: 'Selecione um arquivo PDF antes de enviar.',
+      })
+      return
+    }
+
+    if (!classificacaoUpload) {
+      setMensagemUpload({
+        tipo: 'erro',
+        texto: 'Selecione a classificação da AF antes de enviar.',
+      })
+      return
+    }
+
+    try {
+      setUploadEmAndamento(true)
+      setMensagemUpload(null)
+      setUltimoResultadoUpload(null)
+
+      const resultado = await enviarRelatorioPdfParaProcessamento({
+        arquivo: arquivoUpload,
+        mesReferencia: mesUpload,
+        classificacaoAf: classificacaoUpload,
+        observacoes: observacoesUpload,
+        onProgresso: setProgressoUpload,
+      })
+
+      setUltimoResultadoUpload(resultado)
+      limparCampoArquivo()
+
+      setMensagemUpload({
+        tipo: resultado.duplicado ? 'aviso' : 'sucesso',
+        texto: resultado.mensagem ?? 'PDF registrado na fila com sucesso.',
+      })
+
+      await refetch()
+    } catch (uploadError) {
+      setMensagemUpload({
+        tipo: 'erro',
+        texto:
+          uploadError instanceof Error
+            ? uploadError.message
+            : 'Erro desconhecido ao enviar o PDF.',
+      })
+    } finally {
+      setUploadEmAndamento(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[420px] items-center justify-center">
@@ -274,9 +415,8 @@ export default function RelatoriosPdf() {
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            disabled
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600/60 px-4 py-2 text-sm font-semibold text-white opacity-70"
-            title="Upload será implementado em uma próxima etapa"
+            onClick={abrirModalUpload}
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"
           >
             <Upload className="h-4 w-4" />
             Enviar PDF
@@ -491,6 +631,240 @@ export default function RelatoriosPdf() {
           </div>
         )}
       </section>
+
+      {modalUploadAberto ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+              <div>
+                <p className="text-sm font-semibold text-violet-300">Upload manual</p>
+                <h2 className="mt-1 text-2xl font-bold text-white">
+                  Enviar PDF para processamento
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                  O arquivo será enviado ao Supabase Storage e registrado na fila n8n/IA para processamento automático.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={uploadEmAndamento}
+                onClick={fecharModalUpload}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              {mensagemUpload ? (
+                <div
+                  className={`rounded-2xl border px-4 py-4 text-sm ${getMensagemUploadClasses(
+                    mensagemUpload.tipo,
+                  )}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {getMensagemUploadIcon(mensagemUpload.tipo)}
+                    <div className="flex-1">
+                      <p className="font-semibold">
+                        {mensagemUpload.tipo === 'erro'
+                          ? 'Não foi possível enviar'
+                          : mensagemUpload.tipo === 'aviso'
+                            ? 'PDF duplicado detectado'
+                            : 'PDF registrado com sucesso'}
+                      </p>
+                      <p className="mt-1 leading-6">{mensagemUpload.texto}</p>
+
+                      {ultimoResultadoUpload ? (
+                        <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+                          <span>Fila: {ultimoResultadoUpload.fila_id?.slice(0, 8) ?? 'não informado'}</span>
+                          <span>Status: {ultimoResultadoUpload.status_processamento ?? 'não informado'}</span>
+                          <span>Mês: {ultimoResultadoUpload.mes_referencia ?? 'não informado'}</span>
+                          <span>Classificação: {ultimoResultadoUpload.classificacao_af ?? 'não informado'}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {progressoUpload ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      {uploadEmAndamento ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-violet-300" />
+                      ) : mensagemUpload?.tipo === 'aviso' ? (
+                        <AlertCircle className="h-5 w-5 text-amber-300" />
+                      ) : progressoUpload.percentual >= 100 ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                      ) : (
+                        <Clock3 className="h-5 w-5 text-slate-400" />
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold text-slate-100">{progressoUpload.titulo}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{progressoUpload.descricao}</p>
+                      </div>
+                    </div>
+
+                    <span className="text-sm font-semibold text-slate-300">
+                      {progressoUpload.percentual}%
+                    </span>
+                  </div>
+
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        mensagemUpload?.tipo === 'aviso'
+                          ? 'bg-amber-500'
+                          : mensagemUpload?.tipo === 'erro'
+                            ? 'bg-red-500'
+                            : 'bg-violet-500'
+                      }`}
+                      style={{ width: `${progressoUpload.percentual}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-200">
+                  Arquivo PDF
+                </label>
+
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-950 p-3 sm:flex-row sm:items-center">
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500">
+                    Escolher arquivo
+                    <input
+                      ref={inputArquivoRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      disabled={uploadEmAndamento}
+                      onChange={(event) => {
+                        setArquivoUpload(event.target.files?.[0] ?? null)
+                        setMensagemUpload(null)
+                        setUltimoResultadoUpload(null)
+                        setProgressoUpload(null)
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-200">
+                      {arquivoUpload?.name ?? 'Nenhum arquivo escolhido'}
+                    </p>
+                    {arquivoUpload ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {(arquivoUpload.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-200">
+                    Mês de referência
+                  </label>
+                  <input
+                    type="month"
+                    value={mesUpload}
+                    disabled={uploadEmAndamento}
+                    onChange={(event) => setMesUpload(event.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-200">
+                    Classificação da AF
+                  </label>
+                  <select
+                    value={classificacaoUpload}
+                    disabled={uploadEmAndamento}
+                    onChange={(event) => setClassificacaoUpload(event.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">Selecione...</option>
+                    {CLASSIFICACOES_AF.map((classificacao) => (
+                      <option key={classificacao.value} value={classificacao.value}>
+                        {classificacao.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-200">
+                  Observações
+                </label>
+                <textarea
+                  value={observacoesUpload}
+                  disabled={uploadEmAndamento}
+                  onChange={(event) => setObservacoesUpload(event.target.value)}
+                  rows={4}
+                  placeholder="Exemplo: Relatório mensal recebido da FG Copiadoras para processamento automático."
+                  className="w-full resize-none rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-800 px-6 py-5 sm:flex-row sm:justify-end">
+              {ultimoResultadoUpload ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={uploadEmAndamento}
+                    onClick={prepararNovoUpload}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Enviar outro PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={uploadEmAndamento}
+                    onClick={irParaFilaProcessamento}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-800 bg-violet-950/50 px-4 py-2.5 text-sm font-semibold text-violet-100 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Bot className="h-4 w-4" />
+                    Ir para Fila n8n/IA
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={uploadEmAndamento}
+                    onClick={fecharModalUpload}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={uploadEmAndamento || !arquivoUpload || !classificacaoUpload}
+                    onClick={executarUploadPdf}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {uploadEmAndamento ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {uploadEmAndamento ? 'Enviando...' : 'Enviar para a fila'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

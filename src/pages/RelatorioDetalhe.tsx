@@ -1,101 +1,101 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
-  Ban,
   CheckCircle2,
   Clock3,
+  Download,
+  ExternalLink,
   FileText,
   Loader2,
   RefreshCw,
   Search,
-  ShieldCheck,
   XCircle,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { useRelatorioDetalhe } from '../hooks/useRelatorioDetalhe'
+import { useRelatorioDetalhe } from "../hooks/useRelatorioDetalhe";
 import {
-  useAprovarRelatorio,
-  useRejeitarRelatorio,
-} from '../hooks/useRelatorioAcoes'
-import type { RelatorioDetalheLeitura } from '../types/relatorioDetalhe'
-import { formatCurrency, formatNumber } from '../utils/formatters'
+  criarUrlTemporariaPdfOriginal,
+  montarUrlDownloadPdf,
+} from "../services/relatorioDetalheService";
+import type { RelatorioDetalheLeitura } from "../types/relatorioDetalhe";
+import { formatCurrency, formatNumber } from "../utils/formatters";
 
 function formatarMesReferencia(value: string) {
-  if (!value) return 'Não informado'
+  if (!value) return "Não informado";
 
-  const [ano, mes] = value.split('-')
+  const [ano, mes] = value.split("-");
 
-  if (!ano || !mes) return value
+  if (!ano || !mes) return value;
 
-  return `${mes}/${ano}`
+  return `${mes}/${ano}`;
 }
 
 function formatarDataHora(value: string) {
-  if (!value) return 'Não informado'
+  if (!value) return "Não informado";
 
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function normalizarTexto(value: string) {
   return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function getStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    aguardando_processamento: 'Aguardando processamento',
-    pendente_processamento: 'Pendente processamento',
-    em_processamento: 'Em processamento',
-    extraido: 'Extraído',
-    normalizado: 'Normalizado',
-    validado: 'Validado',
-    importado: 'Importado',
-    pendente_conferencia: 'Pendente conferência',
-    aprovado: 'Aprovado',
-    rejeitado: 'Rejeitado',
-    erro: 'Erro',
-  }
+    aguardando_processamento: "Aguardando processamento",
+    pendente_processamento: "Pendente processamento",
+    em_processamento: "Em processamento",
+    extraido: "Extraído",
+    normalizado: "Normalizado",
+    validado: "Validado",
+    importado: "Importado",
+    pendente_conferencia: "Pendente conferência",
+    aprovado: "Aprovado",
+    rejeitado: "Rejeitado",
+    erro: "Erro",
+  };
 
-  return labels[status] ?? status
+  return labels[status] ?? status;
 }
 
 function getStatusClasses(status: string) {
-  if (status === 'aprovado') {
-    return 'border-emerald-800 bg-emerald-950/50 text-emerald-300'
+  if (status === "aprovado") {
+    return "border-emerald-800 bg-emerald-950/50 text-emerald-300";
   }
 
-  if (status === 'erro' || status === 'rejeitado') {
-    return 'border-red-800 bg-red-950/50 text-red-300'
+  if (status === "erro" || status === "rejeitado") {
+    return "border-red-800 bg-red-950/50 text-red-300";
   }
 
-  if (status === 'pendente_conferencia') {
-    return 'border-amber-800 bg-amber-950/50 text-amber-300'
+  if (status === "pendente_conferencia") {
+    return "border-amber-800 bg-amber-950/50 text-amber-300";
   }
 
-  return 'border-blue-800 bg-blue-950/50 text-blue-300'
+  return "border-blue-800 bg-blue-950/50 text-blue-300";
 }
 
 function getStatusIcon(status: string) {
-  if (status === 'aprovado') {
-    return <CheckCircle2 className="h-4 w-4" />
+  if (status === "aprovado") {
+    return <CheckCircle2 className="h-4 w-4" />;
   }
 
-  if (status === 'erro' || status === 'rejeitado') {
-    return <XCircle className="h-4 w-4" />
+  if (status === "erro" || status === "rejeitado") {
+    return <XCircle className="h-4 w-4" />;
   }
 
-  if (status === 'pendente_conferencia') {
-    return <AlertTriangle className="h-4 w-4" />
+  if (status === "pendente_conferencia") {
+    return <AlertTriangle className="h-4 w-4" />;
   }
 
-  return <Clock3 className="h-4 w-4" />
+  return <Clock3 className="h-4 w-4" />;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -108,7 +108,7 @@ function StatusBadge({ status }: { status: string }) {
       {getStatusIcon(status)}
       {getStatusLabel(status)}
     </span>
-  )
+  );
 }
 
 function ResumoCard({
@@ -116,9 +116,9 @@ function ResumoCard({
   valor,
   descricao,
 }: {
-  titulo: string
-  valor: string
-  descricao: string
+  titulo: string;
+  valor: string;
+  descricao: string;
 }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-sm">
@@ -126,100 +126,122 @@ function ResumoCard({
       <p className="mt-3 text-2xl font-bold text-white">{valor}</p>
       <p className="mt-1 text-xs text-slate-400">{descricao}</p>
     </div>
-  )
+  );
 }
 
 export default function RelatorioDetalhe() {
-  const navigate = useNavigate()
-  const { id } = useParams()
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   const { data, isLoading, isError, error, refetch, isFetching } =
-    useRelatorioDetalhe(id)
+    useRelatorioDetalhe(id);
 
-  const aprovarRelatorio = useAprovarRelatorio()
-  const rejeitarRelatorio = useRejeitarRelatorio()
-
-  const [busca, setBusca] = useState('')
-  const [somenteDivergentes, setSomenteDivergentes] = useState(false)
-
-  const [modalAprovarAberto, setModalAprovarAberto] = useState(false)
-  const [modalRejeitarAberto, setModalRejeitarAberto] = useState(false)
-  const [observacoesAprovacao, setObservacoesAprovacao] = useState('')
-  const [motivoRejeicao, setMotivoRejeicao] = useState('')
-  const [mensagemAcao, setMensagemAcao] = useState<string | null>(null)
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
+  const [busca, setBusca] = useState("");
+  const [somenteDivergentes, setSomenteDivergentes] = useState(false);
+  const [acaoPdfEmAndamento, setAcaoPdfEmAndamento] = useState<
+    "abrir" | "baixar" | null
+  >(null);
+  const [mensagemPdf, setMensagemPdf] = useState<{
+    tipo: "erro" | "sucesso";
+    texto: string;
+  } | null>(null);
 
   const leiturasFiltradas = useMemo(() => {
-    const textoBusca = normalizarTexto(busca.trim())
+    const textoBusca = normalizarTexto(busca.trim());
 
     return (
       data?.leituras.filter((leitura: RelatorioDetalheLeitura) => {
         const textoLeitura = normalizarTexto(
           [
-            leitura.modelo ?? '',
-            leitura.serie ?? '',
-            leitura.site ?? '',
-            leitura.departamento ?? '',
-          ].join(' '),
-        )
+            leitura.modelo ?? "",
+            leitura.serie ?? "",
+            leitura.site ?? "",
+            leitura.departamento ?? "",
+          ].join(" "),
+        );
 
-        const bateBusca = !textoBusca || textoLeitura.includes(textoBusca)
-        const bateDivergente = !somenteDivergentes || leitura.divergente
+        const bateBusca = !textoBusca || textoLeitura.includes(textoBusca);
+        const bateDivergente = !somenteDivergentes || leitura.divergente;
 
-        return bateBusca && bateDivergente
+        return bateBusca && bateDivergente;
       }) ?? []
-    )
-  }, [busca, data?.leituras, somenteDivergentes])
+    );
+  }, [busca, data?.leituras, somenteDivergentes]);
 
-  async function handleAprovarRelatorio() {
-    if (!id) return
-
-    setMensagemAcao(null)
-    setErroAcao(null)
+  async function abrirPdfOriginal() {
+    if (!data?.relatorio.arquivoPath) {
+      setMensagemPdf({
+        tipo: "erro",
+        texto: "Este relatório não possui PDF original vinculado no Storage.",
+      });
+      return;
+    }
 
     try {
-      await aprovarRelatorio.mutateAsync({
-        relatorioId: id,
-        observacoes: observacoesAprovacao,
-      })
+      setMensagemPdf(null);
+      setAcaoPdfEmAndamento("abrir");
 
-      setMensagemAcao('Relatório aprovado com sucesso.')
-      setModalAprovarAberto(false)
-      setObservacoesAprovacao('')
+      const url = await criarUrlTemporariaPdfOriginal(
+        data.relatorio.arquivoPath,
+      );
 
-      await refetch()
-    } catch (error) {
-      setErroAcao(
-        error instanceof Error
-          ? error.message
-          : 'Erro desconhecido ao aprovar relatório.',
-      )
+      window.open(url, "_blank", "noopener,noreferrer");
+
+      setMensagemPdf({
+        tipo: "sucesso",
+        texto: "Link temporário do PDF original aberto em nova aba.",
+      });
+    } catch (erro) {
+      setMensagemPdf({
+        tipo: "erro",
+        texto:
+          erro instanceof Error
+            ? erro.message
+            : "Erro desconhecido ao abrir PDF original.",
+      });
+    } finally {
+      setAcaoPdfEmAndamento(null);
     }
   }
 
-  async function handleRejeitarRelatorio() {
-    if (!id) return
-
-    setMensagemAcao(null)
-    setErroAcao(null)
+  async function baixarPdfOriginal() {
+    if (!data?.relatorio.arquivoPath) {
+      setMensagemPdf({
+        tipo: "erro",
+        texto: "Este relatório não possui PDF original vinculado no Storage.",
+      });
+      return;
+    }
 
     try {
-      await rejeitarRelatorio.mutateAsync({
-        relatorioId: id,
-        motivo: motivoRejeicao,
-      })
+      setMensagemPdf(null);
+      setAcaoPdfEmAndamento("baixar");
 
-      setMensagemAcao('Relatório rejeitado com sucesso.')
-      setModalRejeitarAberto(false)
-      setMotivoRejeicao('')
+      const url = await criarUrlTemporariaPdfOriginal(
+        data.relatorio.arquivoPath,
+      );
+      const link = document.createElement("a");
+      link.href = montarUrlDownloadPdf(url, data.relatorio.nomeArquivo);
+      link.download = data.relatorio.nomeArquivo;
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-      await refetch()
-    } catch (error) {
-      setErroAcao(
-        error instanceof Error
-          ? error.message
-          : 'Erro desconhecido ao rejeitar relatório.',
-      )
+      setMensagemPdf({
+        tipo: "sucesso",
+        texto: "Download do PDF original iniciado.",
+      });
+    } catch (erro) {
+      setMensagemPdf({
+        tipo: "erro",
+        texto:
+          erro instanceof Error
+            ? erro.message
+            : "Erro desconhecido ao baixar PDF original.",
+      });
+    } finally {
+      setAcaoPdfEmAndamento(null);
     }
   }
 
@@ -231,7 +253,7 @@ export default function RelatorioDetalhe() {
           Carregando conferência do relatório...
         </div>
       </div>
-    )
+    );
   }
 
   if (isError) {
@@ -246,13 +268,13 @@ export default function RelatorioDetalhe() {
             </h2>
 
             <p className="mt-1 text-sm text-red-300">
-              {error instanceof Error ? error.message : 'Erro desconhecido.'}
+              {error instanceof Error ? error.message : "Erro desconhecido."}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => navigate('/relatorios-pdf')}
+                onClick={() => navigate("/relatorios-pdf")}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -271,16 +293,12 @@ export default function RelatorioDetalhe() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!data) {
-    return null
+    return null;
   }
-
-  const podeAprovar = data.relatorio.status !== 'aprovado'
-  const podeRejeitar =
-    data.relatorio.status !== 'aprovado' && data.relatorio.status !== 'rejeitado'
 
   return (
     <div className="space-y-6">
@@ -288,7 +306,7 @@ export default function RelatorioDetalhe() {
         <div>
           <button
             type="button"
-            onClick={() => navigate('/relatorios-pdf')}
+            onClick={() => navigate("/relatorios-pdf")}
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -305,56 +323,91 @@ export default function RelatorioDetalhe() {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            Visualização detalhada das leituras importadas do PDF. Nesta tela,
-            você confere os dados antes de aprovar ou rejeitar um relatório.
+            Visualização detalhada das leituras importadas do PDF. Nesta etapa a
+            tela é somente de conferência visual.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={abrirPdfOriginal}
+            disabled={
+              !data.relatorio.arquivoPath || acaoPdfEmAndamento !== null
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-violet-800 bg-violet-950/40 px-4 py-2 text-sm font-semibold text-violet-100 hover:bg-violet-900/50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {acaoPdfEmAndamento === "abrir" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4" />
+            )}
+            Abrir PDF original
+          </button>
+
+          <button
+            type="button"
+            onClick={baixarPdfOriginal}
+            disabled={
+              !data.relatorio.arquivoPath || acaoPdfEmAndamento !== null
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {acaoPdfEmAndamento === "baixar" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Baixar PDF
+          </button>
+
           <button
             type="button"
             onClick={() => refetch()}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
           >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
             Atualizar
           </button>
-
-          {podeAprovar && (
-            <button
-              type="button"
-              onClick={() => setModalAprovarAberto(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Aprovar
-            </button>
-          )}
-
-          {podeRejeitar && (
-            <button
-              type="button"
-              onClick={() => setModalRejeitarAberto(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-800 bg-red-950/50 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950"
-            >
-              <Ban className="h-4 w-4" />
-              Rejeitar
-            </button>
-          )}
         </div>
       </section>
 
-      {mensagemAcao && (
-        <div className="rounded-2xl border border-emerald-900/60 bg-emerald-950/30 p-4 text-sm text-emerald-200">
-          {mensagemAcao}
-        </div>
-      )}
+      {mensagemPdf ? (
+        <section
+          className={`rounded-2xl border px-5 py-4 text-sm ${
+            mensagemPdf.tipo === "sucesso"
+              ? "border-emerald-900/70 bg-emerald-950/30 text-emerald-200"
+              : "border-red-900/70 bg-red-950/30 text-red-200"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {mensagemPdf.tipo === "sucesso" ? (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+            ) : (
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            )}
 
-      {erroAcao && (
-        <div className="rounded-2xl border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-200">
-          {erroAcao}
-        </div>
-      )}
+            <div className="flex-1">
+              <p className="font-semibold">
+                {mensagemPdf.tipo === "sucesso"
+                  ? "Ação concluída"
+                  : "Erro ao acessar PDF"}
+              </p>
+              <p className="mt-1">{mensagemPdf.texto}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMensagemPdf(null)}
+              className="rounded-lg px-2 py-1 text-xs hover:bg-white/10"
+            >
+              Fechar
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ResumoCard
@@ -386,8 +439,8 @@ export default function RelatorioDetalhe() {
           valor={formatNumber(data.resumo.totalDivergencias)}
           descricao={
             data.resumo.totalDivergencias > 0
-              ? 'Existem pontos para revisar'
-              : 'Nenhuma divergência identificada'
+              ? "Existem pontos para revisar"
+              : "Nenhuma divergência identificada"
           }
         />
       </section>
@@ -405,7 +458,7 @@ export default function RelatorioDetalhe() {
                 Classificação AF
               </p>
               <p className="mt-1 font-semibold text-slate-100">
-                {data.relatorio.classificacaoAf ?? 'Não informado'}
+                {data.relatorio.classificacaoAf ?? "Não informado"}
               </p>
             </div>
 
@@ -433,6 +486,15 @@ export default function RelatorioDetalhe() {
               </p>
               <p className="mt-1 break-all font-mono text-xs text-slate-300">
                 {data.relatorio.id}
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                PDF original no Storage
+              </p>
+              <p className="mt-1 break-all font-mono text-xs text-slate-300">
+                {data.relatorio.arquivoPath ?? "Não vinculado"}
               </p>
             </div>
           </div>
@@ -489,15 +551,15 @@ export default function RelatorioDetalhe() {
                   </p>
 
                   <span className="rounded-full border border-amber-800 px-2.5 py-1 text-xs font-semibold text-amber-200">
-                    {divergencia.resolvida ? 'Resolvida' : 'Pendente'}
+                    {divergencia.resolvida ? "Resolvida" : "Pendente"}
                   </span>
                 </div>
 
                 <p className="mt-2 text-slate-300">{divergencia.descricao}</p>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  PDF: {divergencia.valorPdf ?? 'N/I'} · Calculado:{' '}
-                  {divergencia.valorCalculado ?? 'N/I'}
+                  PDF: {divergencia.valorPdf ?? "N/I"} · Calculado:{" "}
+                  {divergencia.valorCalculado ?? "N/I"}
                 </p>
               </div>
             ))}
@@ -537,7 +599,8 @@ export default function RelatorioDetalhe() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-400">
-            Cada linha representa uma série/equipamento extraído do relatório PDF.
+            Cada linha representa uma série/equipamento extraído do relatório
+            PDF.
           </p>
         </div>
 
@@ -550,12 +613,13 @@ export default function RelatorioDetalhe() {
             </h3>
 
             <p className="mt-1 max-w-md text-sm text-slate-500">
-              Ajuste os filtros ou verifique se o relatório possui leituras importadas.
+              Ajuste os filtros ou verifique se o relatório possui leituras
+              importadas.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1380px] w-full text-left text-sm">
+            <table className="min-w-[1580px] w-full text-left text-sm">
               <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3">Equipamento</th>
@@ -568,188 +632,113 @@ export default function RelatorioDetalhe() {
                   <th className="px-5 py-3 text-right">Saldo Cor</th>
                   <th className="px-5 py-3 text-right">Total páginas</th>
                   <th className="px-5 py-3 text-right">Total PDF</th>
+                  <th className="px-5 py-3 text-right">Total calculado</th>
+                  <th className="px-5 py-3 text-right">Diferença</th>
                   <th className="px-5 py-3">Status</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800">
-                {leiturasFiltradas.map((leitura) => (
-                  <tr
-                    key={leitura.id}
-                    className={
-                      leitura.divergente
-                        ? 'bg-amber-950/10 hover:bg-amber-950/20'
-                        : 'hover:bg-slate-800/40'
-                    }
-                  >
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-100">
-                        {leitura.modelo ?? 'Modelo não informado'}
-                      </p>
+                {leiturasFiltradas.map((leitura) => {
+                  const diferencaTotal = Number(
+                    (leitura.totalCalculado - leitura.totalGeralPdf).toFixed(2),
+                  );
+                  const possuiDiferenca = Math.abs(diferencaTotal) > 0.05;
 
-                      <p className="mt-1 font-mono text-xs text-slate-500">
-                        Série: {leitura.serie ?? 'Não informada'}
-                      </p>
-                    </td>
+                  return (
+                    <tr
+                      key={leitura.id}
+                      className={
+                        leitura.divergente || possuiDiferenca
+                          ? "bg-amber-950/10 hover:bg-amber-950/20"
+                          : "hover:bg-slate-800/40"
+                      }
+                    >
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-100">
+                          {leitura.modelo ?? "Modelo não informado"}
+                        </p>
 
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-200">
-                        {leitura.site ?? 'Site não informado'}
-                      </p>
+                        <p className="mt-1 font-mono text-xs text-slate-500">
+                          Série: {leitura.serie ?? "Não informada"}
+                        </p>
+                      </td>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        {leitura.departamento ?? 'Departamento não informado'}
-                      </p>
-                    </td>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-200">
+                          {leitura.site ?? "Site não informado"}
+                        </p>
 
-                    <td className="px-5 py-4 text-right text-slate-300">
-                      {formatNumber(leitura.antPb)}
-                    </td>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {leitura.departamento ?? "Departamento não informado"}
+                        </p>
+                      </td>
 
-                    <td className="px-5 py-4 text-right text-slate-300">
-                      {formatNumber(leitura.atuPb)}
-                    </td>
+                      <td className="px-5 py-4 text-right text-slate-300">
+                        {formatNumber(leitura.antPb)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right font-semibold text-slate-100">
-                      {formatNumber(leitura.saldoPb)}
-                    </td>
+                      <td className="px-5 py-4 text-right text-slate-300">
+                        {formatNumber(leitura.atuPb)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right text-slate-300">
-                      {formatNumber(leitura.antCor)}
-                    </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-100">
+                        {formatNumber(leitura.saldoPb)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right text-slate-300">
-                      {formatNumber(leitura.atuCor)}
-                    </td>
+                      <td className="px-5 py-4 text-right text-slate-300">
+                        {formatNumber(leitura.antCor)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right font-semibold text-slate-100">
-                      {formatNumber(leitura.saldoCor)}
-                    </td>
+                      <td className="px-5 py-4 text-right text-slate-300">
+                        {formatNumber(leitura.atuCor)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right font-semibold text-white">
-                      {formatNumber(leitura.saldoPb + leitura.saldoCor)}
-                    </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-100">
+                        {formatNumber(leitura.saldoCor)}
+                      </td>
 
-                    <td className="px-5 py-4 text-right font-semibold text-emerald-300">
-                      {formatCurrency(leitura.totalGeralPdf)}
-                    </td>
+                      <td className="px-5 py-4 text-right font-semibold text-white">
+                        {formatNumber(leitura.saldoPb + leitura.saldoCor)}
+                      </td>
 
-                    <td className="px-5 py-4">
-                      {leitura.divergente ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-800 bg-amber-950/50 px-2.5 py-1 text-xs font-semibold text-amber-300">
-                          <AlertTriangle className="h-4 w-4" />
-                          Divergente
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950/50 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-                          <CheckCircle2 className="h-4 w-4" />
-                          Conferido
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-5 py-4 text-right font-semibold text-emerald-300">
+                        {formatCurrency(leitura.totalGeralPdf)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-semibold text-blue-300">
+                        {formatCurrency(leitura.totalCalculado)}
+                      </td>
+
+                      <td
+                        className={`px-5 py-4 text-right font-semibold ${
+                          possuiDiferenca ? "text-amber-300" : "text-slate-300"
+                        }`}
+                      >
+                        {formatCurrency(diferencaTotal)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {leitura.divergente || possuiDiferenca ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-800 bg-amber-950/50 px-2.5 py-1 text-xs font-semibold text-amber-300">
+                            <AlertTriangle className="h-4 w-4" />
+                            Divergente
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950/50 px-2.5 py-1 text-xs font-semibold text-emerald-300">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Conferido
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </section>
-
-      {modalAprovarAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white">Aprovar relatório</h2>
-
-            <p className="mt-2 text-sm text-slate-400">
-              Confirme a aprovação somente se os valores e leituras estiverem corretos.
-              Esta ação será registrada em auditoria.
-            </p>
-
-            <label className="mt-5 block text-sm font-medium text-slate-300">
-              Observações da aprovação
-            </label>
-
-            <textarea
-              value={observacoesAprovacao}
-              onChange={(event) => setObservacoesAprovacao(event.target.value)}
-              rows={4}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-              placeholder="Exemplo: Conferido com o PDF original e valores corretos."
-            />
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setModalAprovarAberto(false)}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAprovarRelatorio}
-                disabled={aprovarRelatorio.isPending}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {aprovarRelatorio.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                Confirmar aprovação
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalRejeitarAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-lg rounded-2xl border border-red-900/60 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white">Rejeitar relatório</h2>
-
-            <p className="mt-2 text-sm text-slate-400">
-              Informe o motivo da rejeição. O motivo é obrigatório e ficará registrado
-              para auditoria.
-            </p>
-
-            <label className="mt-5 block text-sm font-medium text-slate-300">
-              Motivo da rejeição
-            </label>
-
-            <textarea
-              value={motivoRejeicao}
-              onChange={(event) => setMotivoRejeicao(event.target.value)}
-              rows={4}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-red-500"
-              placeholder="Exemplo: Valor total do PDF não confere com os itens importados."
-            />
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setModalRejeitarAberto(false)}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRejeitarRelatorio}
-                disabled={
-                  rejeitarRelatorio.isPending || motivoRejeicao.trim().length === 0
-                }
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {rejeitarRelatorio.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                Confirmar rejeição
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  )
+  );
 }
