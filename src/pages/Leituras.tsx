@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
     AlertTriangle,
     CheckCircle2,
@@ -86,15 +86,31 @@ function ResumoCard({
     titulo,
     valor,
     descricao,
+    variante = 'padrao',
 }: {
     titulo: string
     valor: string
     descricao: string
+    variante?: 'padrao' | 'sucesso' | 'aviso' | 'destaque'
 }) {
+    const classes = {
+        padrao: 'border-slate-800 bg-slate-900/80',
+        sucesso: 'border-emerald-900/60 bg-emerald-950/20',
+        aviso: 'border-amber-900/70 bg-amber-950/20',
+        destaque: 'border-violet-900/70 bg-violet-950/30',
+    }
+
+    const valorClasses = {
+        padrao: 'text-white',
+        sucesso: 'text-emerald-200',
+        aviso: 'text-amber-200',
+        destaque: 'text-violet-100',
+    }
+
     return (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-sm">
+        <div className={`rounded-2xl border p-5 shadow-sm ${classes[variante]}`}>
             <p className="text-sm font-medium text-slate-400">{titulo}</p>
-            <p className="mt-3 text-2xl font-bold text-white">{valor}</p>
+            <p className={`mt-3 text-2xl font-bold ${valorClasses[variante]}`}>{valor}</p>
             <p className="mt-1 text-xs text-slate-500">{descricao}</p>
         </div>
     )
@@ -160,6 +176,34 @@ function intersectarRelatorios(
     return principal.filter((item) => permitidos.has(item.value))
 }
 
+function normalizarParametroFiltro(value: string | null, fallback = 'todos'): string {
+    const texto = String(value ?? '').trim()
+
+    return texto.length > 0 ? texto : fallback
+}
+
+function lerBooleanoUrl(value: string | null): boolean {
+    return ['true', '1', 'sim', 'yes'].includes(String(value ?? '').toLowerCase())
+}
+
+function lerFiltrosDaUrl(search: string) {
+    const params = new URLSearchParams(search)
+
+    return {
+        busca: String(params.get('busca') ?? '').trim(),
+        mesReferencia: normalizarParametroFiltro(params.get('mesReferencia')),
+        ano: normalizarParametroFiltro(params.get('ano')),
+        classificacaoAf: normalizarParametroFiltro(params.get('classificacaoAf')),
+        statusConferencia: normalizarParametroFiltro(params.get('statusConferencia')),
+        statusRelatorio: normalizarParametroFiltro(params.get('statusRelatorio'), 'aprovado'),
+        secretaria: normalizarParametroFiltro(params.get('secretaria')),
+        setor: normalizarParametroFiltro(params.get('setor')),
+        modelo: normalizarParametroFiltro(params.get('modelo')),
+        relatorioOrigem: normalizarParametroFiltro(params.get('relatorioOrigem')),
+        somenteDivergentes: lerBooleanoUrl(params.get('somenteDivergentes')),
+    }
+}
+
 function gerarCsvLeituras(itens: LeituraMensalItem[]): string {
     const cabecalho = [
         'Mês referência',
@@ -214,17 +258,20 @@ function gerarCsvLeituras(itens: LeituraMensalItem[]): string {
 
 export default function Leituras() {
     const navigate = useNavigate()
+    const location = useLocation()
+    const filtrosUrlIniciais = lerFiltrosDaUrl(location.search)
 
-    const [busca, setBusca] = useState('')
-    const [mesReferencia, setMesReferencia] = useState('todos')
-    const [classificacaoAf, setClassificacaoAf] = useState('todos')
-    const [statusConferencia, setStatusConferencia] = useState('todos')
-    const [statusRelatorio, setStatusRelatorio] = useState('aprovado')
-    const [secretaria, setSecretaria] = useState('todos')
-    const [setor, setSetor] = useState('todos')
-    const [modelo, setModelo] = useState('todos')
-    const [relatorioOrigem, setRelatorioOrigem] = useState('todos')
-    const [somenteDivergentes, setSomenteDivergentes] = useState(false)
+    const [busca, setBusca] = useState(filtrosUrlIniciais.busca)
+    const [mesReferencia, setMesReferencia] = useState(filtrosUrlIniciais.mesReferencia)
+    const [ano, setAno] = useState(filtrosUrlIniciais.ano)
+    const [classificacaoAf, setClassificacaoAf] = useState(filtrosUrlIniciais.classificacaoAf)
+    const [statusConferencia, setStatusConferencia] = useState(filtrosUrlIniciais.statusConferencia)
+    const [statusRelatorio, setStatusRelatorio] = useState(filtrosUrlIniciais.statusRelatorio)
+    const [secretaria, setSecretaria] = useState(filtrosUrlIniciais.secretaria)
+    const [setor, setSetor] = useState(filtrosUrlIniciais.setor)
+    const [modelo, setModelo] = useState(filtrosUrlIniciais.modelo)
+    const [relatorioOrigem, setRelatorioOrigem] = useState(filtrosUrlIniciais.relatorioOrigem)
+    const [somenteDivergentes, setSomenteDivergentes] = useState(filtrosUrlIniciais.somenteDivergentes)
 
     const [data, setData] = useState<LeiturasMensaisResponse | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -235,6 +282,7 @@ export default function Leituras() {
         () => ({
             busca,
             mesReferencia: mesReferencia === 'todos' ? undefined : mesReferencia,
+            ano: ano === 'todos' ? undefined : ano,
             classificacaoAf: classificacaoAf === 'todos' ? undefined : classificacaoAf,
             statusConferencia,
             statusRelatorio,
@@ -247,6 +295,7 @@ export default function Leituras() {
         }),
         [
             busca,
+            ano,
             classificacaoAf,
             mesReferencia,
             modelo,
@@ -258,6 +307,23 @@ export default function Leituras() {
             statusRelatorio,
         ],
     )
+
+
+    useEffect(() => {
+        const filtrosUrl = lerFiltrosDaUrl(location.search)
+
+        setBusca(filtrosUrl.busca)
+        setMesReferencia(filtrosUrl.mesReferencia)
+        setAno(filtrosUrl.ano)
+        setClassificacaoAf(filtrosUrl.classificacaoAf)
+        setStatusConferencia(filtrosUrl.statusConferencia)
+        setStatusRelatorio(filtrosUrl.statusRelatorio)
+        setSecretaria(filtrosUrl.secretaria)
+        setSetor(filtrosUrl.setor)
+        setModelo(filtrosUrl.modelo)
+        setRelatorioOrigem(filtrosUrl.relatorioOrigem)
+        setSomenteDivergentes(filtrosUrl.somenteDivergentes)
+    }, [location.search])
 
     async function carregarLeituras(mostrarLoadingInicial = false) {
         try {
@@ -367,6 +433,7 @@ export default function Leituras() {
     function limparFiltros() {
         setBusca('')
         setMesReferencia('todos')
+        setAno('todos')
         setClassificacaoAf('todos')
         setStatusConferencia('todos')
         setStatusRelatorio('aprovado')
@@ -375,6 +442,7 @@ export default function Leituras() {
         setModelo('todos')
         setRelatorioOrigem('todos')
         setSomenteDivergentes(false)
+        navigate('/leituras', { replace: true })
     }
 
     function exportarCsvLeituras() {
@@ -425,6 +493,7 @@ export default function Leituras() {
     const filtrosAtivos = [
         busca.trim() ? `Busca: ${busca.trim()}` : null,
         mesReferencia !== 'todos' ? `Mês: ${opcoes?.meses.find((mes) => mes.value === mesReferencia)?.label ?? mesReferencia}` : null,
+        ano !== 'todos' ? `Ano: ${ano}` : null,
         classificacaoAf !== 'todos' ? `AF: ${classificacaoAf}` : null,
         relatorioOrigem !== 'todos' ? `Relatório: ${opcoes?.relatorios.find((relatorio) => relatorio.value === relatorioOrigem)?.label ?? relatorioOrigem}` : null,
         secretaria !== 'todos' ? `Secretaria: ${secretaria}` : null,
@@ -434,6 +503,23 @@ export default function Leituras() {
         statusRelatorio !== 'aprovado' ? `Status relatório: ${statusRelatorio === 'todos' ? 'Todos' : formatStatus(statusRelatorio)}` : null,
         somenteDivergentes ? 'Somente divergentes' : null,
     ].filter((item): item is string => Boolean(item))
+
+    const equipamentosUnicos = new Set(
+        itens
+            .map((item) => item.serie)
+            .filter((serie) => serie && serie !== 'Não informado'),
+    ).size
+
+    const relatoriosUnicos = new Set(
+        itens
+            .map((item) => item.relatorioId)
+            .filter(Boolean),
+    ).size
+
+    const diferencaTotalFiltrada = resumo?.diferencaTotal ?? 0
+    const leiturasDivergentesFiltradas = resumo?.leiturasDivergentes ?? 0
+    const possuiDivergenciaVisual =
+        leiturasDivergentesFiltradas > 0 || Math.abs(diferencaTotalFiltrada) > 0.05
 
     return (
         <div className="space-y-6">
@@ -469,29 +555,95 @@ export default function Leituras() {
                 </div>
             </section>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <ResumoCard
-                    titulo="Total de leituras"
-                    valor={formatNumber(resumo?.totalLeituras ?? 0)}
-                    descricao={`${formatNumber(resumo?.totalRelatorios ?? 0)} relatório(s) no filtro`}
-                />
-                <ResumoCard
-                    titulo="Total de páginas"
-                    valor={formatNumber(resumo?.totalPaginas ?? 0)}
-                    descricao={`${formatNumber(resumo?.paginasPb ?? 0)} P/B + ${formatNumber(
-                        resumo?.paginasColoridas ?? 0,
-                    )} coloridas`}
-                />
-                <ResumoCard
-                    titulo="Valor PDF"
-                    valor={formatCurrency(resumo?.valorPdf ?? 0)}
-                    descricao="Soma do total geral informado nos PDFs"
-                />
-                <ResumoCard
-                    titulo="Divergências"
-                    valor={formatNumber(resumo?.leiturasDivergentes ?? 0)}
-                    descricao={`Diferença total: ${formatCurrency(resumo?.diferencaTotal ?? 0)}`}
-                />
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-sm">
+                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold text-white">
+                            Resumo do resultado filtrado
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-400">
+                            Os cards abaixo refletem exatamente as leituras exibidas na tabela e no CSV.
+                        </p>
+                    </div>
+
+                    <span
+                        className={`w-fit rounded-full border px-3 py-1 text-xs font-semibold ${
+                            possuiDivergenciaVisual
+                                ? 'border-amber-800 bg-amber-950/40 text-amber-200'
+                                : 'border-emerald-800 bg-emerald-950/40 text-emerald-200'
+                        }`}
+                    >
+                        {possuiDivergenciaVisual
+                            ? 'Atenção: existem divergências no filtro'
+                            : 'Sem divergência no filtro atual'}
+                    </span>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+                    <ResumoCard
+                        titulo="Leituras exibidas"
+                        valor={formatNumber(resumo?.totalLeituras ?? 0)}
+                        descricao="Linhas/equipamentos retornados pelos filtros"
+                        variante="destaque"
+                    />
+
+                    <ResumoCard
+                        titulo="Relatórios envolvidos"
+                        valor={formatNumber(relatoriosUnicos || resumo?.totalRelatorios || 0)}
+                        descricao="Quantidade de PDFs de origem no filtro"
+                    />
+
+                    <ResumoCard
+                        titulo="Equipamentos/Séries"
+                        valor={formatNumber(equipamentosUnicos)}
+                        descricao="Séries únicas encontradas no filtro"
+                    />
+
+                    <ResumoCard
+                        titulo="Páginas P/B"
+                        valor={formatNumber(resumo?.paginasPb ?? 0)}
+                        descricao="Soma do saldo P/B das leituras exibidas"
+                    />
+
+                    <ResumoCard
+                        titulo="Páginas coloridas"
+                        valor={formatNumber(resumo?.paginasColoridas ?? 0)}
+                        descricao="Soma do saldo colorido das leituras exibidas"
+                    />
+
+                    <ResumoCard
+                        titulo="Total de páginas"
+                        valor={formatNumber(resumo?.totalPaginas ?? 0)}
+                        descricao="P/B + coloridas dentro do filtro"
+                        variante="destaque"
+                    />
+
+                    <ResumoCard
+                        titulo="Total PDF"
+                        valor={formatCurrency(resumo?.valorPdf ?? 0)}
+                        descricao="Soma do total geral informado nos PDFs"
+                    />
+
+                    <ResumoCard
+                        titulo="Total calculado"
+                        valor={formatCurrency(resumo?.valorCalculado ?? 0)}
+                        descricao="Soma recalculada pelo sistema"
+                    />
+
+                    <ResumoCard
+                        titulo="Diferença"
+                        valor={formatCurrency(diferencaTotalFiltrada)}
+                        descricao="Total calculado menos total informado no PDF"
+                        variante={Math.abs(diferencaTotalFiltrada) > 0.05 ? 'aviso' : 'sucesso'}
+                    />
+
+                    <ResumoCard
+                        titulo="Divergências"
+                        valor={formatNumber(leiturasDivergentesFiltradas)}
+                        descricao={`${formatNumber(resumo?.leiturasConferidas ?? 0)} leitura(s) conferida(s)`}
+                        variante={leiturasDivergentesFiltradas > 0 ? 'aviso' : 'sucesso'}
+                    />
+                </div>
             </section>
 
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm">

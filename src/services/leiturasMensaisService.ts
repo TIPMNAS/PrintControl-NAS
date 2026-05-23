@@ -42,6 +42,7 @@ type LeituraMensalRow = {
 export type LeiturasMensaisFiltros = {
     busca?: string
     mesReferencia?: string
+    ano?: string
     classificacaoAf?: string
     statusConferencia?: string
     statusRelatorio?: string
@@ -430,6 +431,7 @@ function aplicarFiltros(
 ): LeituraMensalItem[] {
     const busca = normalizarTexto(filtros.busca)
     const mesReferencia = obterMesFiltro(filtros.mesReferencia)
+    const anoFiltro = String(filtros.ano ?? '').trim()
     const classificacaoAf = normalizarTexto(filtros.classificacaoAf)
     const statusConferencia = String(filtros.statusConferencia ?? '').toLowerCase().trim()
     const statusRelatorio = String(filtros.statusRelatorio ?? '').toLowerCase().trim()
@@ -444,6 +446,10 @@ function aplicarFiltros(
         }
 
         if (mesReferencia && item.mesReferenciaFiltro !== mesReferencia) {
+            return false
+        }
+
+        if (!mesReferencia && anoFiltro && anoFiltro !== 'todos' && item.mesReferencia?.slice(0, 4) !== anoFiltro) {
             return false
         }
 
