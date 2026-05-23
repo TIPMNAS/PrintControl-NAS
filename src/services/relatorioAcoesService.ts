@@ -111,3 +111,35 @@ export async function cancelarPdfFila(params: {
 
     return data ?? {}
 }
+
+
+export async function excluirRelatorioPdfCompleto(params: {
+    relatorioId: string
+    motivo: string
+    confirmacao: string
+}): Promise<RpcResponse> {
+    validarUuid(params.relatorioId, 'ID do relatório')
+
+    const motivoLimpo = params.motivo.trim()
+    const confirmacaoLimpa = params.confirmacao.trim().toUpperCase()
+
+    if (motivoLimpo.length < 10) {
+        throw new Error('Informe um motivo com pelo menos 10 caracteres para excluir o relatório.')
+    }
+
+    if (confirmacaoLimpa !== 'EXCLUIR') {
+        throw new Error('Confirmação inválida. Digite EXCLUIR para confirmar a exclusão.')
+    }
+
+    const { data, error } = await db.rpc('rpc_excluir_relatorio_pdf_completo', {
+        p_relatorio_id: params.relatorioId,
+        p_motivo: motivoLimpo,
+        p_confirmacao: confirmacaoLimpa,
+    })
+
+    if (error) {
+        throw new Error(error.message)
+    }
+
+    return data ?? {}
+}

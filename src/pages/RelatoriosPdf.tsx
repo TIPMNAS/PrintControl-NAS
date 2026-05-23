@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Search,
   Upload,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 
@@ -30,7 +31,7 @@ import {
   criarUrlTemporariaPdfOriginal,
   montarUrlDownloadPdf,
 } from '../services/relatorioDetalheService'
-import { cancelarPdfFila, reprocessarPdfFila } from '../services/relatorioAcoesService'
+import { cancelarPdfFila, excluirRelatorioPdfCompleto, reprocessarPdfFila } from '../services/relatorioAcoesService'
 import { obterHistoricoRelatorioPdf } from '../services/relatorioHistoricoService'
 import type { RelatorioPdfHistoricoDetalhe, RelatorioPdfItem, RelatorioPdfItemAf } from '../types/relatoriosPdf'
 import { formatCurrency, formatNumber } from '../utils/formatters'
@@ -751,6 +752,7 @@ export default function RelatoriosPdf() {
     useState<AtalhoConferencia>('todos')
   const [pdfEmAcaoId, setPdfEmAcaoId] = useState<string | null>(null)
   const [filaEmAcaoId, setFilaEmAcaoId] = useState<string | null>(null)
+  const [relatorioExcluindoId, setRelatorioExcluindoId] = useState<string | null>(null)
   const [mensagemAcao, setMensagemAcao] = useState<{
     tipo: 'sucesso' | 'erro' | 'aviso'
     texto: string
@@ -1238,6 +1240,99 @@ export default function RelatoriosPdf() {
       })
     } finally {
       setFilaEmAcaoId(null)
+    }
+  }
+
+
+  async function executarExclusaoRelatorio(relatorio: RelatorioPdfItem) {
+    const prontoAf = getProntoAfRelatorio(relatorio)
+
+    const primeiraConfirmacao = window.confirm(
+      [
+        'ATENÇÃO: você está prestes a excluir um relatório PDF importado.',
+        '',
+        `Arquivo: ${relatorio.nomeArquivo}`,
+        `Classificação: ${relatorio.classificacaoAf ?? 'Não informada'}`,
+        `Mês: ${formatarMesReferencia(relatorio.mesReferencia)}`,
+        `Status: ${getStatusLabel(relatorio.status)}`,
+        prontoAf.pronto ? 'Este relatório está marcado como pronto para AF.' : '',
+        '',
+        'A exclusão removerá o relatório e as leituras vinculadas, mas salvará um snapshot em log de auditoria.',
+        '',
+        'Deseja continuar?',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    )
+
+    if (!primeiraConfirmacao) return
+
+    const motivo = window.prompt(
+      'Informe o motivo da exclusão. O motivo precisa ter pelo menos 10 caracteres:',
+      `Relatório lançado errado: ${relatorio.nomeArquivo}`,
+    )
+
+    if (motivo === null) return
+
+    const motivoLimpo = motivo.trim()
+
+    if (motivoLimpo.length < 10) {
+      setMensagemAcao({
+        tipo: 'erro',
+        texto: 'A exclusão foi cancelada. O motivo precisa ter pelo menos 10 caracteres.',
+      })
+      return
+    }
+
+    const confirmacao = window.prompt(
+      'Para confirmar a exclusão, digite exatamente: EXCLUIR',
+      '',
+    )
+
+    if (confirmacao === null) return
+
+    if (confirmacao.trim().toUpperCase() !== 'EXCLUIR') {
+      setMensagemAcao({
+        tipo: 'aviso',
+        texto: 'Exclusão cancelada. A confirmação digitada não foi EXCLUIR.',
+      })
+      return
+    }
+
+    try {
+      setRelatorioExcluindoId(relatorio.id)
+      setMensagemAcao(null)
+
+      const resultado = await excluirRelatorioPdfCompleto({
+        relatorioId: relatorio.id,
+        motivo: motivoLimpo,
+        confirmacao: 'EXCLUIR',
+      })
+
+      setMensagemAcao({
+        tipo: resultadoRpcOk(resultado) ? 'sucesso' : 'aviso',
+        texto: extrairMensagemRpc(resultado, 'Relatório excluído com segurança e snapshot salvo em auditoria.'),
+      })
+
+      if (historicoRelatorio?.id === relatorio.id) {
+        fecharModalHistorico()
+      }
+
+      if (relatorioItensAf?.id === relatorio.id) {
+        fecharModalItensAf()
+      }
+
+      await refetch()
+    } catch (exclusaoError) {
+      setMensagemAcao({
+        tipo: 'erro',
+        texto:
+          exclusaoError instanceof Error
+            ? exclusaoError.message
+            : 'Erro desconhecido ao excluir o relatório.',
+      })
+    } finally {
+      setRelatorioExcluindoId(null)
     }
   }
 
@@ -2402,6 +2497,25 @@ export default function RelatoriosPdf() {
                               <XCircle className="h-4 w-4" />
                             )}
                             Cancelar
+                          </button>
+
+
+                          <button
+                            type="button"
+                            disabled={relatorioExcluindoId === relatorio.id}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              void executarExclusaoRelatorio(relatorio)
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-700 bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Excluir relatório lançado errado com snapshot de auditoria"
+                          >
+                            {relatorioExcluindoId === relatorio.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                            Excluir
                           </button>
                         </div>
                       </td>
