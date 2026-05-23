@@ -139,3 +139,27 @@ export type RelatorioPdfHistoricoDetalhe = {
     filas: RelatorioPdfHistoricoFilaItem[]
     auditorias: RelatorioPdfHistoricoAuditoriaItem[]
 }
+
+export type RelatorioPdfExclusaoLog = {
+    id: string
+    relatorioId: string
+    nomeArquivo: string | null
+    hashArquivo: string | null
+    motivo: string
+    excluidoPor: string | null
+    relatorioSnapshot: Record<string, unknown> | null
+    leiturasSnapshot: unknown[]
+    divergenciasSnapshot: unknown[]
+    filaSnapshot: unknown[]
+    resultadoJson: Record<string, unknown> | null
+    createdAt: string
+    totalLeiturasSnapshot: number
+    totalDivergenciasSnapshot: number
+    totalFilasSnapshot: number
+    statusAnterior: string | null
+    classificacaoAf: string | null
+    mesReferencia: string | null
+    valorBruto: number
+    valorLiquido: number
+    valorCalculado: number
+}

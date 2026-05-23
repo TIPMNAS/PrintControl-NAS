@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
+  Archive,
   Bot,
   CheckCircle2,
   Clock3,
@@ -16,6 +17,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  ShieldCheck,
   Upload,
   Trash2,
   XCircle,
@@ -33,7 +35,8 @@ import {
 } from '../services/relatorioDetalheService'
 import { cancelarPdfFila, excluirRelatorioPdfCompleto, reprocessarPdfFila } from '../services/relatorioAcoesService'
 import { obterHistoricoRelatorioPdf } from '../services/relatorioHistoricoService'
-import type { RelatorioPdfHistoricoDetalhe, RelatorioPdfItem, RelatorioPdfItemAf } from '../types/relatoriosPdf'
+import { listarRelatoriosPdfExcluidos } from '../services/relatoriosExcluidosService'
+import type { RelatorioPdfExclusaoLog, RelatorioPdfHistoricoDetalhe, RelatorioPdfItem, RelatorioPdfItemAf } from '../types/relatoriosPdf'
 import { formatCurrency, formatNumber } from '../utils/formatters'
 
 function getMesAtualInput() {
@@ -736,6 +739,309 @@ const resumoInicial: ResumoFiltro = {
   diferenca: 0,
 }
 
+
+function RelatoriosExcluidosModal({
+  logs,
+  selecionado,
+  carregando,
+  erro,
+  onSelecionar,
+  onAtualizar,
+  onFechar,
+}: {
+  logs: RelatorioPdfExclusaoLog[]
+  selecionado: RelatorioPdfExclusaoLog | null
+  carregando: boolean
+  erro: string | null
+  onSelecionar: (log: RelatorioPdfExclusaoLog) => void
+  onAtualizar: () => void
+  onFechar: () => void
+}) {
+  const snapshot = selecionado?.relatorioSnapshot ?? null
+  const totalSnapshot = selecionado
+    ? selecionado.totalLeiturasSnapshot + selecionado.totalDivergenciasSnapshot + selecionado.totalFilasSnapshot
+    : 0
+
+  function copiarSnapshotSelecionado() {
+    if (!selecionado) return
+
+    const conteudo = JSON.stringify(
+      {
+        exclusao: selecionado,
+        relatorio_snapshot: selecionado.relatorioSnapshot,
+        leituras_snapshot: selecionado.leiturasSnapshot,
+        divergencias_snapshot: selecionado.divergenciasSnapshot,
+        fila_snapshot: selecionado.filaSnapshot,
+      },
+      null,
+      2,
+    )
+
+    void navigator.clipboard?.writeText(conteudo)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
+        <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-rose-300">
+              Auditoria de exclusões
+            </p>
+            <h2 className="mt-1 text-xl font-bold text-white">
+              Histórico de relatórios excluídos
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm text-slate-400">
+              Esta tela mostra os relatórios removidos da área operacional, mantendo o snapshot para auditoria e conferência futura.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={onAtualizar}
+              disabled={carregando}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} />
+              Atualizar
+            </button>
+
+            <button
+              type="button"
+              onClick={onFechar}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[390px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto border-b border-slate-800 bg-slate-950/80 p-4 lg:border-b-0 lg:border-r">
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+                <p className="text-xs text-slate-500">Exclusões</p>
+                <p className="mt-1 text-xl font-bold text-white">{formatNumber(logs.length)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+                <p className="text-xs text-slate-500">Leituras</p>
+                <p className="mt-1 text-xl font-bold text-white">
+                  {formatNumber(logs.reduce((total, log) => total + log.totalLeiturasSnapshot, 0))}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+                <p className="text-xs text-slate-500">Filas</p>
+                <p className="mt-1 text-xl font-bold text-white">
+                  {formatNumber(logs.reduce((total, log) => total + log.totalFilasSnapshot, 0))}
+                </p>
+              </div>
+            </div>
+
+            {erro ? (
+              <div className="mb-4 rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">
+                {erro}
+              </div>
+            ) : null}
+
+            {carregando ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-5 text-sm text-slate-300">
+                <Loader2 className="h-5 w-5 animate-spin text-violet-300" />
+                Carregando histórico de exclusões...
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="rounded-2xl border border-emerald-900/60 bg-emerald-950/20 px-4 py-5 text-sm text-emerald-100">
+                Nenhum relatório excluído encontrado no log de auditoria.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {logs.map((log) => {
+                  const ativo = selecionado?.id === log.id
+
+                  return (
+                    <button
+                      key={log.id}
+                      type="button"
+                      onClick={() => onSelecionar(log)}
+                      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                        ativo
+                          ? 'border-rose-700 bg-rose-950/30'
+                          : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">
+                            {log.nomeArquivo ?? 'Arquivo não informado'}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {log.classificacaoAf ?? 'Sem classificação'} • {log.mesReferencia ? formatarMesReferencia(log.mesReferencia) : 'Sem mês'}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-rose-800 bg-rose-950/40 px-2 py-1 text-[11px] font-semibold text-rose-200">
+                          Excluído
+                        </span>
+                      </div>
+
+                      <p className="mt-3 line-clamp-2 text-xs text-slate-400">
+                        {log.motivo}
+                      </p>
+
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        {formatarDataHora(log.createdAt)}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </aside>
+
+          <section className="min-h-0 overflow-y-auto p-5">
+            {!selecionado ? (
+              <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center">
+                <div>
+                  <Archive className="mx-auto h-10 w-10 text-slate-500" />
+                  <h3 className="mt-4 text-lg font-bold text-white">Selecione uma exclusão</h3>
+                  <p className="mt-2 max-w-md text-sm text-slate-400">
+                    Clique em um item da lista para visualizar o motivo, os totais e o snapshot salvo antes da exclusão.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Relatório excluído
+                      </p>
+                      <h3 className="mt-1 text-xl font-bold text-white">
+                        {selecionado.nomeArquivo ?? 'Arquivo não informado'}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Excluído em {formatarDataHora(selecionado.createdAt)}
+                        {selecionado.excluidoPor ? ` por ${selecionado.excluidoPor}` : ''}.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={copiarSnapshotSelecionado}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Copiar snapshot JSON
+                    </button>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-amber-900/60 bg-amber-950/20 px-4 py-3 text-sm text-amber-100">
+                    <div className="flex gap-3">
+                      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Motivo informado na exclusão</p>
+                        <p className="mt-1 text-amber-100/90">{selecionado.motivo}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <ResumoCard
+                    titulo="Status anterior"
+                    valor={selecionado.statusAnterior ?? 'Não informado'}
+                    descricao="Status que estava no relatório excluído"
+                    destaque="amarelo"
+                  />
+                  <ResumoCard
+                    titulo="Leituras no snapshot"
+                    valor={formatNumber(selecionado.totalLeiturasSnapshot)}
+                    descricao="Linhas preservadas no log"
+                  />
+                  <ResumoCard
+                    titulo="Filas vinculadas"
+                    valor={formatNumber(selecionado.totalFilasSnapshot)}
+                    descricao="Registros n8n/IA preservados"
+                  />
+                  <ResumoCard
+                    titulo="Total bruto anterior"
+                    valor={formatCurrency(selecionado.valorBruto)}
+                    descricao="Valor salvo no relatório excluído"
+                    destaque="verde"
+                  />
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
+                    <h4 className="text-base font-bold text-white">Dados do relatório antes da exclusão</h4>
+                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <dt className="text-xs text-slate-500">Classificação AF</dt>
+                        <dd className="mt-1 font-semibold text-slate-100">{selecionado.classificacaoAf ?? 'Não informada'}</dd>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <dt className="text-xs text-slate-500">Mês referência</dt>
+                        <dd className="mt-1 font-semibold text-slate-100">
+                          {selecionado.mesReferencia ? formatarMesReferencia(selecionado.mesReferencia) : 'Não informado'}
+                        </dd>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <dt className="text-xs text-slate-500">Valor líquido/NF</dt>
+                        <dd className="mt-1 font-semibold text-emerald-300">{formatCurrency(selecionado.valorLiquido)}</dd>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <dt className="text-xs text-slate-500">Valor calculado</dt>
+                        <dd className="mt-1 font-semibold text-slate-100">{formatCurrency(selecionado.valorCalculado)}</dd>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 sm:col-span-2">
+                        <dt className="text-xs text-slate-500">Hash do arquivo</dt>
+                        <dd className="mt-1 break-all font-mono text-xs text-slate-300">{selecionado.hashArquivo ?? 'Não informado'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
+                    <h4 className="text-base font-bold text-white">Resumo preservado</h4>
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <p className="text-xs text-slate-500">Leituras</p>
+                        <p className="mt-1 text-lg font-bold text-white">{formatNumber(selecionado.totalLeiturasSnapshot)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <p className="text-xs text-slate-500">Divergências</p>
+                        <p className="mt-1 text-lg font-bold text-white">{formatNumber(selecionado.totalDivergenciasSnapshot)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                        <p className="text-xs text-slate-500">Fila</p>
+                        <p className="mt-1 text-lg font-bold text-white">{formatNumber(selecionado.totalFilasSnapshot)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+                      Total de registros preservados no snapshot: <span className="font-semibold text-white">{formatNumber(totalSnapshot)}</span>
+                    </div>
+
+                    {snapshot ? (
+                      <details className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+                        <summary className="cursor-pointer font-semibold text-slate-100">
+                          Ver snapshot bruto do relatório
+                        </summary>
+                        <pre className="mt-3 max-h-80 overflow-auto rounded-xl bg-black/40 p-3 text-xs text-slate-300">
+                          {JSON.stringify(snapshot, null, 2)}
+                        </pre>
+                      </details>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function RelatoriosPdf() {
   const navigate = useNavigate()
   const inputArquivoRef = useRef<HTMLInputElement | null>(null)
@@ -764,6 +1070,11 @@ export default function RelatoriosPdf() {
   const [historicoErro, setHistoricoErro] = useState<string | null>(null)
   const [modalItensAfAberto, setModalItensAfAberto] = useState(false)
   const [relatorioItensAf, setRelatorioItensAf] = useState<RelatorioPdfItem | null>(null)
+  const [modalExcluidosAberto, setModalExcluidosAberto] = useState(false)
+  const [relatoriosExcluidos, setRelatoriosExcluidos] = useState<RelatorioPdfExclusaoLog[]>([])
+  const [excluidosCarregando, setExcluidosCarregando] = useState(false)
+  const [excluidosErro, setExcluidosErro] = useState<string | null>(null)
+  const [exclusaoSelecionada, setExclusaoSelecionada] = useState<RelatorioPdfExclusaoLog | null>(null)
 
   const [modalUploadAberto, setModalUploadAberto] = useState(false)
   const [arquivoUpload, setArquivoUpload] = useState<File | null>(null)
@@ -1394,6 +1705,45 @@ export default function RelatoriosPdf() {
     }
   }
 
+
+  async function carregarRelatoriosExcluidos() {
+    try {
+      setExcluidosCarregando(true)
+      setExcluidosErro(null)
+
+      const logs = await listarRelatoriosPdfExcluidos(100)
+
+      setRelatoriosExcluidos(logs)
+      setExclusaoSelecionada((selecionadoAtual) => {
+        if (selecionadoAtual && logs.some((log) => log.id === selecionadoAtual.id)) {
+          return logs.find((log) => log.id === selecionadoAtual.id) ?? selecionadoAtual
+        }
+
+        return logs[0] ?? null
+      })
+    } catch (excluidosError) {
+      setExcluidosErro(
+        excluidosError instanceof Error
+          ? excluidosError.message
+          : 'Erro desconhecido ao carregar relatórios excluídos.',
+      )
+    } finally {
+      setExcluidosCarregando(false)
+    }
+  }
+
+  async function abrirModalRelatoriosExcluidos() {
+    setModalExcluidosAberto(true)
+    await carregarRelatoriosExcluidos()
+  }
+
+  function fecharModalRelatoriosExcluidos() {
+    setModalExcluidosAberto(false)
+    setRelatoriosExcluidos([])
+    setExclusaoSelecionada(null)
+    setExcluidosErro(null)
+  }
+
   async function abrirHistoricoRelatorio(relatorio: RelatorioPdfItem) {
     setModalHistoricoAberto(true)
     setHistoricoRelatorio(relatorio)
@@ -1670,6 +2020,16 @@ export default function RelatoriosPdf() {
           >
             <Bot className="h-4 w-4" />
             Fila n8n/IA
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void abrirModalRelatoriosExcluidos()}
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-800/70 bg-rose-950/20 px-4 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-950/40"
+            title="Ver histórico de relatórios excluídos com snapshot de auditoria"
+          >
+            <Archive className="h-4 w-4" />
+            Excluídos
           </button>
 
           <button
@@ -2527,6 +2887,18 @@ export default function RelatoriosPdf() {
           </div>
         )}
       </section>
+
+      {modalExcluidosAberto ? (
+        <RelatoriosExcluidosModal
+          logs={relatoriosExcluidos}
+          selecionado={exclusaoSelecionada}
+          carregando={excluidosCarregando}
+          erro={excluidosErro}
+          onSelecionar={setExclusaoSelecionada}
+          onAtualizar={() => void carregarRelatoriosExcluidos()}
+          onFechar={fecharModalRelatoriosExcluidos}
+        />
+      ) : null}
 
       {modalHistoricoAberto && historicoRelatorio ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
