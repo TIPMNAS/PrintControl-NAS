@@ -43,8 +43,8 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const formattedDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors duration-200">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-14 w-full min-w-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 shadow-xs transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900 sm:h-16 sm:px-4 xl:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         {/* Mobile Menu Toggle Button */}
         <button
           onClick={onMenuToggle}
@@ -54,19 +54,19 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         </button>
 
         {/* Breadcrumbs / Page Title */}
-        <div className="hidden sm:flex flex-col">
+        <div className="hidden min-w-0 flex-col sm:flex">
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             <span>{parent}</span>
             <ChevronRight size={12} />
             <span className="text-slate-500 dark:text-slate-400 font-semibold">{title}</span>
           </div>
-          <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h1>
+          <h1 className="truncate text-base font-bold text-slate-800 dark:text-slate-100 sm:text-lg">{title}</h1>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3 xl:gap-4">
         {/* Search Bar - Desktop Only */}
-        <div className="relative hidden md:block w-64">
+        <div className="relative hidden w-52 md:block lg:w-64 xl:w-80 2xl:w-96">
           <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
@@ -76,7 +76,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         </div>
 
         {/* Date Display */}
-        <div className="hidden lg:flex items-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800 pr-4">
+        <div className="hidden items-center gap-1.5 border-r border-slate-200 pr-3 text-sm font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400 xl:flex 2xl:pr-4">
           <Calendar size={16} className="text-indigo-500" />
           <span className="capitalize">{formattedDate}</span>
         </div>
