@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ReactNode, type UIEvent } from 'react';
 import { Network, Search, Plus, Building2, User, Mail, ShieldAlert } from 'lucide-react';
 
 interface Sector {
@@ -9,6 +9,63 @@ interface Sector {
   supervisor: string;
   email: string;
   status: 'active' | 'inactive';
+}
+
+
+function SyncedTableScroll({
+    children,
+    minWidth = 1200,
+}: {
+    children: ReactNode
+    minWidth?: number
+}) {
+    const topScrollRef = useRef<HTMLDivElement | null>(null)
+    const bottomScrollRef = useRef<HTMLDivElement | null>(null)
+    const syncingRef = useRef(false)
+
+    const syncScroll = (source: 'top' | 'bottom') => (event: UIEvent<HTMLDivElement>) => {
+        if (syncingRef.current) return
+
+        syncingRef.current = true
+
+        const origem = event.currentTarget
+        const destino = source === 'top' ? bottomScrollRef.current : topScrollRef.current
+
+        if (destino) {
+            destino.scrollLeft = origem.scrollLeft
+        }
+
+        requestAnimationFrame(() => {
+            syncingRef.current = false
+        })
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>Rolagem horizontal rápida</span>
+                    <span>Arraste aqui para ver as colunas finais sem descer até o fim da tabela.</span>
+                </div>
+
+                <div
+                    ref={topScrollRef}
+                    onScroll={syncScroll('top')}
+                    className="overflow-x-auto pb-1"
+                >
+                    <div style={{ width: minWidth, height: 1 }} />
+                </div>
+            </div>
+
+            <div
+                ref={bottomScrollRef}
+                onScroll={syncScroll('bottom')}
+                className="overflow-x-auto"
+            >
+                {children}
+            </div>
+        </div>
+    )
 }
 
 const mockSectors: Sector[] = [
@@ -59,9 +116,9 @@ export default function Setores() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Setores Internos</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie os setores de alocação física de cada secretaria municipal e seus responsáveis directos.</p>
@@ -83,7 +140,7 @@ export default function Setores() {
             Cadastrar Novo Setor
           </h3>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nome do Setor</label>
                 <input
@@ -169,7 +226,7 @@ export default function Setores() {
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Setores Mapeados</h3>
             <p className="text-xs text-slate-400">Listagem de todos os departamentos internos vinculados.</p>
           </div>
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-80">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
@@ -182,8 +239,8 @@ export default function Setores() {
         </div>
 
         {/* Sectors Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm text-slate-500 dark:text-slate-400">
+        <SyncedTableScroll minWidth={1080}>
+          <table className="min-w-[1080px] w-full border-collapse text-left text-sm text-slate-500 dark:text-slate-400">
             <thead className="bg-slate-50 text-xs font-semibold text-slate-600 uppercase dark:bg-slate-900 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800">
               <tr>
                 <th scope="col" className="px-6 py-4">Setor</th>
@@ -245,7 +302,7 @@ export default function Setores() {
               )}
             </tbody>
           </table>
-        </div>
+        </SyncedTableScroll>
       </div>
     </div>
   );

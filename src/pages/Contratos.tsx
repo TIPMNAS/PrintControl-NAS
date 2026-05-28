@@ -65,9 +65,9 @@ export default function Contratos() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Contratos de Locação</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie e monitore a vigência, SLAs e custos fixos dos contratos de outsourcing de impressão.</p>
@@ -89,7 +89,7 @@ export default function Contratos() {
             Adicionar Novo Contrato de Outsourcing
           </h3>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Número do Contrato</label>
                 <input
@@ -193,7 +193,7 @@ export default function Contratos() {
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Contratos Ativos</h3>
             <p className="text-xs text-slate-400">Listagem de termos jurídicos de outsourcing de impressão de equipamentos.</p>
           </div>
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-80">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
@@ -206,7 +206,7 @@ export default function Contratos() {
         </div>
 
         {/* List mapping */}
-        <div className="p-6 grid gap-6 lg:grid-cols-2">
+        <div className="p-4 sm:p-6 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((c) => {
             const today = new Date();
             const endD = new Date(c.endDate + 'T00:00:00');

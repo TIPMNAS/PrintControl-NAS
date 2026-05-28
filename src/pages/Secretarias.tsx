@@ -61,9 +61,9 @@ export default function Secretarias() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Secretarias Municipais</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie a estrutura organizacional da prefeitura, controlando as cotas globais de impressão por secretaria.</p>
@@ -85,7 +85,7 @@ export default function Secretarias() {
             Cadastrar Nova Secretaria
           </h3>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nome da Secretaria</label>
                 <input
@@ -155,7 +155,7 @@ export default function Secretarias() {
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Lista de Secretarias</h3>
             <p className="text-xs text-slate-400">Total de páginas permitidas versus páginas consumidas no mês corrente.</p>
           </div>
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-80">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
@@ -168,7 +168,7 @@ export default function Secretarias() {
         </div>
 
         {/* List of cards for Secretariats (gives more premium details) */}
-        <div className="p-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((s) => {
             const usagePercent = Math.min(Math.round((s.usedPages / s.quota) * 100), 100);
             return (

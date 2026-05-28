@@ -60,9 +60,9 @@ export default function Modelos() {
   const filteredModels = models;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Modelos de Equipamentos</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie a tabela de modelos suportados, especificações técnicas de toners e custos contratuais por página.</p>
@@ -84,7 +84,7 @@ export default function Modelos() {
             Cadastrar Novo Modelo de Impressora
           </h3>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Fabricante / Marca</label>
                 <select
@@ -189,7 +189,7 @@ export default function Modelos() {
       )}
 
       {/* Model Catalog Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {filteredModels.map((m) => (
           <div key={m.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col justify-between gap-4">
             <div className="flex items-start justify-between">
