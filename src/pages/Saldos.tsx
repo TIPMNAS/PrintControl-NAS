@@ -68,16 +68,16 @@ export default function Saldos() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Saldos & Alertas Contratuais</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Monitore as cotas contratadas de impressão por órgão público e receba avisos preventivos de excedente.</p>
         </div>
         <button
           onClick={() => setShowAdjustModal(!showAdjustModal)}
-          className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-600/10 cursor-pointer transition-all self-start sm:self-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-600/10 transition-all hover:bg-indigo-700 sm:w-auto xl:self-start"
         >
           <Plus size={16} />
           {showAdjustModal ? 'Fechar Ajuste' : 'Ajustar Cota Temporária'}
@@ -86,13 +86,13 @@ export default function Saldos() {
 
       {/* Adjust Quota form */}
       {showAdjustModal && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 animate-in slide-in-from-top duration-300">
+        <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-xs animate-in slide-in-from-top duration-300 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
           <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Scale size={18} className="text-indigo-600 dark:text-indigo-400" />
             Adicionar Aditivo de Impressões (Cota Extra)
           </h3>
           <form onSubmit={handleAdjustQuota} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_220px]">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Secretaria</label>
                 <select
@@ -141,10 +141,10 @@ export default function Saldos() {
       )}
 
       {/* Filter and balance view */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+      <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
         {/* Table Header Filter */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between sm:p-5">
+          <div className="flex flex-wrap gap-2 lg:flex-1">
             <button
               onClick={() => setFilterType('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors
@@ -179,7 +179,7 @@ export default function Saldos() {
             </button>
           </div>
 
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full lg:max-w-md xl:max-w-xl">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
@@ -192,12 +192,12 @@ export default function Saldos() {
         </div>
 
         {/* Balance progress bars list */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-4 p-4 sm:p-6">
           {filtered.length > 0 ? (
             filtered.map((b) => {
               const ratio = Math.round((b.consumedQuota / b.allocatedQuota) * 100);
               return (
-                <div key={b.id} className="space-y-2 border border-slate-100 dark:border-slate-800/80 rounded-xl p-4 bg-slate-50/30 dark:bg-slate-900/20">
+                <div key={b.id} className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/30 p-4 dark:border-slate-800/80 dark:bg-slate-900/20">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-550 px-2 py-0.5 rounded">
@@ -239,7 +239,7 @@ export default function Saldos() {
                   </div>
 
                   {/* Quota details */}
-                  <div className="flex justify-between items-center text-xs text-slate-450 dark:text-slate-500 pt-1">
+                  <div className="grid gap-2 pt-1 text-xs text-slate-450 dark:text-slate-500 sm:grid-cols-3">
                     <span>Impresso: <strong>{b.consumedQuota.toLocaleString()} pág.</strong></span>
                     <span>Cota Contratual: <strong>{b.allocatedQuota.toLocaleString()} pág.</strong></span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">

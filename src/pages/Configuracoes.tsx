@@ -21,7 +21,7 @@ export default function Configuracoes() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Configurações do Sistema</h2>
@@ -29,9 +29,9 @@ export default function Configuracoes() {
       </div>
 
       {/* Tabs Layout */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex w-full flex-col gap-6 xl:flex-row">
         {/* Navigation Sidebar for settings */}
-        <div className="lg:w-64 shrink-0 flex flex-row lg:flex-col gap-1 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 pb-4 lg:pb-0 lg:pr-6">
+        <div className="flex w-full shrink-0 flex-row gap-2 overflow-x-auto border-b border-slate-200 pb-4 dark:border-slate-800 xl:w-72 xl:flex-col xl:overflow-visible xl:border-b-0 xl:border-r xl:pb-0 xl:pr-6">
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer
@@ -73,7 +73,7 @@ export default function Configuracoes() {
         </div>
 
         {/* Tab content wrapper */}
-        <div className="flex-1 bg-white border border-slate-200 dark:border-slate-800 dark:bg-slate-900 rounded-xl p-6 shadow-xs max-w-3xl">
+        <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-6">
           {activeTab === 'profile' && (
             <form onSubmit={handleSave} className="space-y-6">
               <div>
@@ -81,7 +81,7 @@ export default function Configuracoes() {
                 <p className="text-xs text-slate-400">Identificação administrativa no sistema PrintControl NAS.</p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nome Completo</label>
                   <input
@@ -123,7 +123,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
                   type="submit"
                   className="px-5 h-10 rounded-lg bg-indigo-600 font-semibold text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/10 cursor-pointer transition-all"
@@ -143,8 +143,8 @@ export default function Configuracoes() {
 
               <div className="space-y-4">
                 {/* Rule 1 */}
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                  <div className="space-y-1 pr-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-100 p-4 transition-colors hover:bg-slate-50/50 dark:border-slate-800/80 dark:hover:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1 sm:pr-4">
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Permitir Extravasamento de Cota</h4>
                     <p className="text-xs text-slate-400">
                       Permitir que secretarias continuem imprimindo mesmo após atingir 100% da cota mensal planejada (faturamento excedente ativo).
@@ -160,8 +160,8 @@ export default function Configuracoes() {
                 </div>
 
                 {/* Rule 2 */}
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                  <div className="space-y-1 pr-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-100 p-4 transition-colors hover:bg-slate-50/50 dark:border-slate-800/80 dark:hover:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1 sm:pr-4">
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Notificar Estouro de SLA de Impressora</h4>
                     <p className="text-xs text-slate-400">
                       Disparar alertas críticos caso um equipamento offline passe do prazo limite contratual de reparo (horas acordadas em contrato).
@@ -177,8 +177,8 @@ export default function Configuracoes() {
                 </div>
 
                 {/* Rule 3 */}
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                  <div className="space-y-1 pr-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-100 p-4 transition-colors hover:bg-slate-50/50 dark:border-slate-800/80 dark:hover:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1 sm:pr-4">
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Varredura SNMP Ativa</h4>
                     <p className="text-xs text-slate-400">
                       Habilitar varreduras automáticas de rede via SNMP para coletar os contadores de páginas físicos das impressoras em tempo real.
@@ -194,7 +194,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
                   type="submit"
                   className="px-5 h-10 rounded-lg bg-indigo-600 font-semibold text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/10 cursor-pointer transition-all"
@@ -227,7 +227,7 @@ export default function Configuracoes() {
                   </p>
                 </div>
 
-                <div className="rounded-lg bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-500/5 dark:border-indigo-500/10 p-4 flex gap-3 text-sm text-indigo-900 dark:text-indigo-300">
+                <div className="flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-sm text-indigo-900 dark:border-indigo-500/10 dark:bg-indigo-500/5 dark:text-indigo-300 sm:flex-row">
                   <Shield size={20} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div className="space-y-1">
                     <p className="font-semibold">Conexão Segura Supabase</p>
@@ -238,7 +238,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
                   type="submit"
                   className="px-5 h-10 rounded-lg bg-indigo-600 font-semibold text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/10 cursor-pointer transition-all"
