@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
     AlertTriangle,
@@ -79,6 +79,67 @@ function StatusBadge({ status, divergente = false }: { status: string; divergent
             )}
             {formatStatus(status)}
         </span>
+    )
+}
+
+
+function SyncedTableScroll({
+    children,
+    minWidth,
+    maxHeightClass = 'max-h-[calc(100vh-330px)]',
+}: {
+    children: ReactNode
+    minWidth: number
+    maxHeightClass?: string
+}) {
+    const topScrollRef = useRef<HTMLDivElement | null>(null)
+    const tableScrollRef = useRef<HTMLDivElement | null>(null)
+    const syncingRef = useRef(false)
+
+    function sincronizarScroll(origem: 'topo' | 'tabela') {
+        return (event: UIEvent<HTMLDivElement>) => {
+            if (syncingRef.current) return
+
+            const origemElemento = event.currentTarget
+            const destinoElemento = origem === 'topo' ? tableScrollRef.current : topScrollRef.current
+
+            if (!destinoElemento) return
+
+            syncingRef.current = true
+            destinoElemento.scrollLeft = origemElemento.scrollLeft
+
+            window.requestAnimationFrame(() => {
+                syncingRef.current = false
+            })
+        }
+    }
+
+    return (
+        <div className="w-full">
+            <div className="flex flex-col gap-2 border-b border-slate-800 bg-slate-950/50 px-4 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                    Tabela larga: use a barra horizontal abaixo para acessar as colunas da direita sem descer até o fim da lista.
+                </span>
+                <span className="font-semibold text-violet-300">Scroll horizontal sincronizado</span>
+            </div>
+
+            <div
+                ref={topScrollRef}
+                onScroll={sincronizarScroll('topo')}
+                className="sticky top-0 z-30 h-4 w-full overflow-x-auto overflow-y-hidden border-b border-slate-800 bg-slate-950/95"
+                aria-label="Rolagem horizontal superior da tabela"
+            >
+                <div style={{ width: minWidth }} className="h-1" />
+            </div>
+
+            <div
+                ref={tableScrollRef}
+                onScroll={sincronizarScroll('tabela')}
+                className={`w-full overflow-auto ${maxHeightClass}`}
+            >
+                {children}
+            </div>
+        </div>
     )
 }
 
@@ -522,18 +583,18 @@ export default function Leituras() {
         leiturasDivergentesFiltradas > 0 || Math.abs(diferencaTotalFiltrada) > 0.05
 
     return (
-        <div className="space-y-6">
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="w-full max-w-none min-w-0 space-y-6">
+            <section className="flex w-full min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
                     <p className="text-sm font-medium text-violet-300">Relatórios PDF</p>
                     <h1 className="mt-1 text-2xl font-bold text-white">Leituras mensais</h1>
-                    <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                    <p className="mt-2 max-w-5xl text-sm text-slate-400">
                         Consulte as leituras importadas dos PDFs, com filtros por mês, classificação,
                         status, equipamento, secretaria, setor e divergência.
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-row">
                     <button
                         type="button"
                         onClick={exportarCsvLeituras}
@@ -579,7 +640,7 @@ export default function Leituras() {
                     </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                     <ResumoCard
                         titulo="Leituras exibidas"
                         valor={formatNumber(resumo?.totalLeituras ?? 0)}
@@ -682,7 +743,7 @@ export default function Leituras() {
                             1. Busca e competência
                         </p>
 
-                        <div className="grid gap-3 xl:grid-cols-[1.5fr_180px_220px_220px]">
+                        <div className="grid gap-3 xl:grid-cols-[minmax(320px,1.5fr)_minmax(170px,220px)_minmax(210px,260px)_minmax(210px,260px)]">
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
                                 <input
@@ -742,7 +803,7 @@ export default function Leituras() {
                             Os filtros são dependentes: ao escolher uma secretaria, a lista de setores e modelos é ajustada automaticamente.
                         </p>
 
-                        <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                             <select
                                 value={secretaria}
                                 onChange={(event) => {
@@ -792,7 +853,7 @@ export default function Leituras() {
                             3. Conferência e status
                         </p>
 
-                        <div className="grid gap-3 lg:grid-cols-[220px_220px_1fr]">
+                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-[220px_220px_1fr]">
                             <select
                                 value={statusConferencia}
                                 onChange={(event) => setStatusConferencia(event.target.value)}
@@ -876,8 +937,8 @@ export default function Leituras() {
                         </p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-[1900px] w-full text-left text-sm">
+                    <SyncedTableScroll minWidth={1900}>
+                        <table className="w-full min-w-[1900px] text-left text-sm">
                             <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                                 <tr>
                                     <th className="px-5 py-3">Equipamento</th>
@@ -960,7 +1021,7 @@ export default function Leituras() {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </SyncedTableScroll>
                 )}
             </section>
         </div>

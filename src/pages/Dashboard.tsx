@@ -411,8 +411,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-w-0 space-y-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div className="w-full max-w-none min-w-0 space-y-6">
+      <div className="flex w-full min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
             {resumo ? (
@@ -432,7 +432,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end">
           <button
             type="button"
             onClick={() => refetch()}
@@ -880,7 +880,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,1fr)]">
+            <div className="mt-5 grid gap-4 2xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)]">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="mb-3">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -974,7 +974,7 @@ export default function Dashboard() {
         )}
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,2fr)_minmax(420px,1fr)]">
         <div className="min-w-0 space-y-5 xl:col-span-1">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <div className="mb-4">
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="min-w-0 space-y-5">
+        <div className="w-full max-w-none min-w-0 space-y-6">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div>
@@ -1235,7 +1235,7 @@ export default function Dashboard() {
                 </span>
               </div>
             ) : (
-              <div className="max-h-[620px] space-y-3 overflow-y-auto pr-1">
+              <div className="max-h-[min(70vh,760px)] space-y-3 overflow-y-auto pr-1">
                 {rankingEquipamentos.map((equipamento, index) => (
                   <div
                     key={`${equipamento.serie}-${equipamento.modelo}-${index}`}
@@ -1320,7 +1320,7 @@ export default function Dashboard() {
                 </span>
               </div>
             ) : (
-              <div className="max-h-[480px] space-y-3.5 overflow-y-auto pr-1">
+              <div className="max-h-[min(62vh,640px)] space-y-3.5 overflow-y-auto pr-1">
                 {alertas.map((alerta, idx) => {
                   const styles = alertStyles(alerta.nivel)
                   return (

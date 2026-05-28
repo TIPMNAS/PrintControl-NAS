@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode, type UIEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
@@ -180,6 +180,66 @@ function StatusBadge({ status }: { status: string }) {
       {getStatusIcon(status)}
       {getStatusLabel(status)}
     </span>
+  )
+}
+
+function SyncedTableScroll({
+  children,
+  minWidth,
+  maxHeightClass = 'max-h-[calc(100vh-330px)]',
+}: {
+  children: ReactNode
+  minWidth: number
+  maxHeightClass?: string
+}) {
+  const topScrollRef = useRef<HTMLDivElement | null>(null)
+  const tableScrollRef = useRef<HTMLDivElement | null>(null)
+  const syncingRef = useRef(false)
+
+  function sincronizarScroll(origem: 'topo' | 'tabela') {
+    return (event: UIEvent<HTMLDivElement>) => {
+      if (syncingRef.current) return
+
+      const origemElemento = event.currentTarget
+      const destinoElemento = origem === 'topo' ? tableScrollRef.current : topScrollRef.current
+
+      if (!destinoElemento) return
+
+      syncingRef.current = true
+      destinoElemento.scrollLeft = origemElemento.scrollLeft
+
+      window.requestAnimationFrame(() => {
+        syncingRef.current = false
+      })
+    }
+  }
+
+  return (
+    <div className="w-full">
+      <div className="flex flex-col gap-2 border-b border-slate-800 bg-slate-950/50 px-4 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          Tabela larga: use a barra horizontal abaixo para acessar as colunas da direita sem descer até o fim da lista.
+        </span>
+        <span className="font-semibold text-violet-300">Scroll horizontal sincronizado</span>
+      </div>
+
+      <div
+        ref={topScrollRef}
+        onScroll={sincronizarScroll('topo')}
+        className="sticky top-0 z-30 h-4 w-full overflow-x-auto overflow-y-hidden border-b border-slate-800 bg-slate-950/95"
+        aria-label="Rolagem horizontal superior da tabela"
+      >
+        <div style={{ width: minWidth }} className="h-1" />
+      </div>
+
+      <div
+        ref={tableScrollRef}
+        onScroll={sincronizarScroll('tabela')}
+        className={`w-full overflow-auto ${maxHeightClass}`}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -782,7 +842,7 @@ function RelatoriosExcluidosModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-[min(96vw,1800px)] flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
         <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-rose-300">
@@ -791,12 +851,12 @@ function RelatoriosExcluidosModal({
             <h2 className="mt-1 text-xl font-bold text-white">
               Histórico de relatórios excluídos
             </h2>
-            <p className="mt-1 max-w-3xl text-sm text-slate-400">
+            <p className="mt-1 max-w-[min(96vw,920px)] text-sm text-slate-400">
               Esta tela mostra os relatórios removidos da área operacional, mantendo o snapshot para auditoria e conferência futura.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:flex 2xl:w-auto 2xl:flex-wrap 2xl:justify-end">
             <button
               type="button"
               onClick={onAtualizar}
@@ -946,7 +1006,7 @@ function RelatoriosExcluidosModal({
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <ResumoCard
                     titulo="Status anterior"
                     valor={selecionado.statusAnterior ?? 'Não informado'}
@@ -1985,8 +2045,8 @@ export default function RelatoriosPdf() {
   const filaResumo = data?.filaResumo
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="w-full max-w-none min-w-0 space-y-6">
+      <section className="flex w-full min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-sm font-medium text-violet-300">Relatórios PDF</p>
 
@@ -1994,7 +2054,7 @@ export default function RelatoriosPdf() {
             Relatórios importados
           </h1>
 
-          <p className="mt-2 max-w-3xl text-sm text-slate-400">
+          <p className="mt-2 max-w-[min(96vw,1400px)] text-sm text-slate-400">
             Listagem dos relatórios mensais vinculados ao contrato{' '}
             <span className="font-semibold text-slate-200">
               {data?.contrato.numeroContrato}
@@ -2003,7 +2063,7 @@ export default function RelatoriosPdf() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:flex 2xl:w-auto 2xl:flex-wrap 2xl:justify-end">
           <button
             type="button"
             onClick={abrirModalUpload}
@@ -2069,7 +2129,7 @@ export default function RelatoriosPdf() {
         </div>
       )}
 
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_1.2fr_0.8fr]">
+      <section className="grid gap-4 2xl:grid-cols-[1.2fr_1.2fr_0.8fr]">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -2267,7 +2327,7 @@ export default function RelatoriosPdf() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ResumoCard
           titulo="Relatórios encontrados"
           valor={formatNumber(resumoFiltro.totalRelatorios)}
@@ -2337,7 +2397,7 @@ export default function RelatoriosPdf() {
           </span>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
           <ResumoStatusCard
             titulo="Prontos para AF"
             valor={formatNumber(resumoStatusOperacional.prontosAf)}
@@ -2510,7 +2570,7 @@ export default function RelatoriosPdf() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 xl:grid-cols-[1.4fr_180px_180px_220px_220px_180px]">
+        <div className="mt-4 grid gap-3 xl:grid-cols-3 2xl:grid-cols-[minmax(320px,1.4fr)_minmax(170px,200px)_minmax(170px,200px)_minmax(210px,240px)_minmax(210px,240px)_minmax(170px,200px)]">
           <div className="relative xl:col-span-2">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
             <input
@@ -2612,8 +2672,8 @@ export default function RelatoriosPdf() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[2320px] w-full text-left text-sm">
+          <SyncedTableScroll minWidth={2320}>
+            <table className="w-full min-w-[2320px] text-left text-sm">
               <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3">Arquivo</th>
@@ -2884,7 +2944,7 @@ export default function RelatoriosPdf() {
                 })}
               </tbody>
             </table>
-          </div>
+          </SyncedTableScroll>
         )}
       </section>
 
@@ -2902,7 +2962,7 @@ export default function RelatoriosPdf() {
 
       {modalHistoricoAberto && historicoRelatorio ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
+          <div className="max-h-[92vh] w-full max-w-[min(96vw,1400px)] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
               <div>
                 <p className="text-sm font-semibold text-violet-300">Histórico do relatório</p>
@@ -3092,14 +3152,14 @@ export default function RelatoriosPdf() {
 
       {modalItensAfAberto && relatorioItensAf ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
+          <div className="max-h-[92vh] w-full max-w-[min(96vw,1600px)] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
             <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm font-semibold text-emerald-300">Relatório para Compras</p>
                 <h2 className="mt-1 text-2xl font-bold text-white">
                   Itens para emissão da AF
                 </h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                <p className="mt-2 max-w-[min(96vw,920px)] text-sm leading-6 text-slate-400">
                   Use esta prévia para enviar ao setor de Compras os itens consolidados de locação e páginas impressas. Este relatório não substitui a AF oficial do sistema de compras.
                 </p>
               </div>
@@ -3197,7 +3257,7 @@ export default function RelatoriosPdf() {
                     Nenhum item consolidado foi encontrado. Confira se as leituras deste relatório possuem modelo do equipamento vinculado.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="w-full overflow-x-auto">
                     <table className="min-w-[980px] w-full text-left text-sm">
                       <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-slate-500">
                         <tr>
@@ -3250,7 +3310,7 @@ export default function RelatoriosPdf() {
 
       {modalUploadAberto ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
+          <div className="max-h-[92vh] w-full max-w-[min(96vw,920px)] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950">
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
               <div>
                 <p className="text-sm font-semibold text-violet-300">Upload manual</p>
